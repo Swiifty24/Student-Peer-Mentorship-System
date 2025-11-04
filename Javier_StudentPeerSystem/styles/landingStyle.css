@@ -1,0 +1,203 @@
+C:\xampp\htdocs\Javier_StudentPeerSystem/* ---------------------------------- */
+/* --- 1. Global Variables & Reset --- */
+/* ---------------------------------- */
+:root {
+    /* Primary brand color: A deep, professional Teal/Blue */
+    --primary-color: #00796B;       
+    /* Accent color: A vibrant Coral/Orange for CTAs, Energy, and Focus */
+    --accent-color: #FF7043;        
+    /* Muted success/positive action color */
+    --success-color: #4CAF50;       
+    --text-color: #333333;
+    --background-color: #F8F9FA;
+    --light-gray: #ECEFF1;
+    --border-radius: 12px; /* Increased rounding for a softer look */
+    --shadow-main: 0 10px 30px rgba(0, 0, 0, 0.1);
+    --font-stack: 'Inter', sans-serif;
+}
+
+body {
+    font-family: var(--font-stack);
+    color: var(--text-color);
+    background-color: var(--background-color); 
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    position: relative; 
+    z-index: 1; 
+}
+
+/* ---------------------------------- */
+/* --- 2. FULL-PAGE BLURRED BACKGROUND --- */
+/* ---------------------------------- */
+/* Use a fixed, subtle background to make the page pop */
+body::before {
+    content: '';
+    position: fixed; 
+    top: 0; right: 0; bottom: 0; left: 0;
+    /* Using students.jpg as the full-page background. Make sure the path is correct */
+    background: url('../images/students.jpg') no-repeat center center/cover; 
+    filter: blur(5px) grayscale(50%); /* Subtle blur and color reduction */
+    opacity: 0.3; /* Keep it light and in the background */
+    z-index: -1; 
+}
+
+/* ---------------------------------- */
+/* --- 3. Hero Section (index.php) --- */
+/* ---------------------------------- */
+.hero-section {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    background-color: rgba(255, 255, 255, 0.9); /* White overlay for readability */
+    box-shadow: var(--shadow-main);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    margin-bottom: 30px;
+}
+
+.hero-content {
+    max-width: 800px;
+}
+
+.hero-section h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: var(--primary-color); 
+    margin-bottom: 15px;
+    letter-spacing: -1px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.hero-section p {
+    font-size: 1.6rem;
+    font-weight: 400;
+    margin-bottom: 40px;
+    color: var(--text-color);
+}
+
+/* ---------------------------------- */
+/* --- 4. Buttons and Links --- */
+/* ---------------------------------- */
+.btn {
+    display: inline-block;
+    padding: 12px 30px;
+    text-decoration: none;
+    border-radius: 50px; /* Pill shape for modern look */
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Call to Action Button */
+.cta-button {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.cta-button:hover {
+    background-color: #FF5722; /* Slightly darker orange on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.hero-section .alt-link a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.hero-section .alt-link a:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+/* ---------------------------------- */
+/* --- 5. Features Section --- */
+/* ---------------------------------- */
+.features-section {
+    padding: 50px 20px;
+    text-align: center;
+    background-color: var(--background-color); 
+}
+
+.features-section h2 {
+    font-size: 2.2rem;
+    color: var(--primary-color);
+    margin-bottom: 40px;
+    font-weight: 700;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.feature-item {
+    background: white;
+    padding: 30px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-main);
+    text-align: left;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-top: 5px solid var(--accent-color);
+}
+
+.feature-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+.feature-item h3 {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+/* Feature Icon Placeholder (using a simple circle) */
+.feature-item h3::before {
+    content: '★'; /* Placeholder icon */
+    color: var(--accent-color);
+    font-size: 1.2em;
+    margin-right: 10px;
+    display: inline-block;
+    /* Optional: add background for a better icon effect if using FontAwesome */
+}
+
+
+/* ---------------------------------- */
+/* --- 6. Footer --- */
+/* ---------------------------------- */
+footer {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    background-color: var(--light-gray);
+    margin-top: auto;
+    border-top: 1px solid #ddd;
+}
+
+/* ---------------------------------- */
+/* --- 7. Responsiveness --- */
+/* ---------------------------------- */
+@media (max-width: 768px) {
+    .hero-section h1 {
+        font-size: 2.5rem;
+    }
+    .hero-section p {
+        font-size: 1.2rem;
+    }
+    .hero-section {
+        min-height: 60vh;
+    }
+}
