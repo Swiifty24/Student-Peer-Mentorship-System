@@ -1,9 +1,117 @@
+<?php
+session_start();
+require_once '../classes/database.php';
+
+// Check if user is logged in and is a tutor
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'tutor') {
+    header("Location: ../login.php");
+    exit();
+}
+
+$conn = new Database();
+$pdo = $conn->connect();
+$tutorUserId = $_SESSION['user_id'];
+
+// Get tutor information
+$stmt = $pdo->prepare("SELECT * FROM tutorprofiles WHERE user_id = ?");
+$stmt->execute([$tutorUserId]);
+$tutorProfile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Get time period filter
+$period = isset($_GET['period']) ? $_GET['period'] : 'month';
+$dateCondition = "";
+switch($period) {
+    case 'week':
+        $dateCondition = "AND s.session_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+        break;
+    case 'quarter':
+        $dateCondition = "AND s.session_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)";
+        break;
+    case 'month':
+    default:
+        $dateCondition = "AND s.session_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)";
+        break;
+}
+
+// Get KPI data
+// Active Students
+$stmt = $pdo->prepare("SELECT COUNT(DISTINCT e.student_id) as count 
+                       FROM enrollments e 
+                       WHERE e.tutor_id = ? AND e.status = 'active'");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$activeStudents = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+
+// Total Sessions
+$stmt = $pdo->prepare("SELECT COUNT(*) as count 
+                       FROM sessions s 
+                       JOIN enrollments e ON s.enrollment_id = e.enrollment_id 
+                       WHERE e.tutor_id = ? AND s.status = 'completed' $dateCondition");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$totalSessions = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+
+// Total Hours
+$stmt = $pdo->prepare("SELECT SUM(s.duration) as total 
+                       FROM sessions s 
+                       JOIN enrollments e ON s.enrollment_id = e.enrollment_id 
+                       WHERE e.tutor_id = ? AND s.status = 'completed' $dateCondition");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$totalHours = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+
+// Average Rating
+$stmt = $pdo->prepare("SELECT AVG(r.rating) as avg_rating 
+                       FROM ratings r 
+                       JOIN enrollments e ON r.enrollment_id = e.enrollment_id 
+                       WHERE e.tutor_id = ?");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$avgRating = round($stmt->fetch(PDO::FETCH_ASSOC)['avg_rating'] ?? 0, 1);
+
+// Completion Rate
+$stmt = $pdo->prepare("SELECT 
+                       SUM(CASE WHEN s.status = 'completed' THEN 1 ELSE 0 END) as completed,
+                       COUNT(*) as total
+                       FROM sessions s 
+                       JOIN enrollments e ON s.enrollment_id = e.enrollment_id 
+                       WHERE e.tutor_id = ? $dateCondition");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$sessionStats = $stmt->fetch(PDO::FETCH_ASSOC);
+$completionRate = $sessionStats['total'] > 0 ? round(($sessionStats['completed'] / $sessionStats['total']) * 100) : 0;
+
+// Total Earnings
+$totalEarnings = $totalHours * ($tutorProfile['hourly_rate'] ?? 0);
+
+// Get student list with session counts
+$stmt = $pdo->prepare("SELECT 
+                       u.user_id, u.first_name, u.last_name, u.email,
+                       e.status,
+                       COUNT(s.session_id) as session_count
+                       FROM enrollments e
+                       JOIN users u ON e.student_id = u.user_id
+                       LEFT JOIN sessions s ON e.enrollment_id = s.enrollment_id AND s.status = 'completed'
+                       WHERE e.tutor_id = ?
+                       GROUP BY u.user_id, u.first_name, u.last_name, u.email, e.status
+                       ORDER BY session_count DESC");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get weekly session data for chart
+$stmt = $pdo->prepare("SELECT 
+                       WEEK(s.session_date) as week_num,
+                       COUNT(*) as session_count
+                       FROM sessions s
+                       JOIN enrollments e ON s.enrollment_id = e.enrollment_id
+                       WHERE e.tutor_id = ? AND s.status = 'completed'
+                       AND s.session_date >= DATE_SUB(CURDATE(), INTERVAL 5 WEEK)
+                       GROUP BY WEEK(s.session_date)
+                       ORDER BY week_num");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$weeklyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tutor KPI Dashboard</title>
+    <title>KPI Dashboard - Student Peer Mentorship</title>
     <style>
         * {
             margin: 0;
@@ -59,6 +167,16 @@
         .tutor-rate {
             color: #667eea;
             font-weight: 600;
+        }
+
+        .back-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
 
         .time-period {
@@ -239,72 +357,6 @@
             color: #004085;
         }
 
-        .chart-section {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        }
-
-        .chart-section h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-
-        .chart-container {
-            height: 300px;
-            position: relative;
-        }
-
-        .bar-chart {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-around;
-            height: 100%;
-            padding: 20px 0;
-        }
-
-        .bar {
-            flex: 1;
-            margin: 0 10px;
-            background: linear-gradient(180deg, #667eea, #764ba2);
-            border-radius: 8px 8px 0 0;
-            position: relative;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .bar:hover {
-            opacity: 0.8;
-            transform: scaleY(1.05);
-        }
-
-        .bar-label {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 0.9em;
-            color: #666;
-            font-weight: 600;
-        }
-
-        .bar-value {
-            position: absolute;
-            top: -25px;
-            width: 100%;
-            text-align: center;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #667eea;
-            font-size: 1.2em;
-        }
-
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -341,270 +393,101 @@
 </head>
 <body>
     <div class="container">
+        <a href="tutor_dashboard.php" class="back-btn">← Back to Dashboard</a>
+        
         <div class="header">
             <div class="header-left">
                 <h1>📊 Tutor Performance Dashboard</h1>
                 <p>Track your mentorship impact and student progress</p>
             </div>
             <div class="tutor-info">
-                <div class="tutor-name" id="tutorName">Loading...</div>
-                <div class="tutor-rate" id="tutorRate">$0.00/hr</div>
+                <div class="tutor-name"><?php echo htmlspecialchars($tutorProfile['first_name'] . ' ' . $tutorProfile['last_name']); ?></div>
+                <div class="tutor-rate">$<?php echo number_format($tutorProfile['hourly_rate'] ?? 0, 2); ?>/hr</div>
             </div>
         </div>
 
         <div class="time-period">
-            <div>
-                <label for="period" style="margin-right: 15px; font-weight: 600; color: #667eea;">Time Period:</label>
-                <select id="period" onchange="loadDashboardData()">
-                    <option value="week">This Week</option>
-                    <option value="month" selected>This Month</option>
-                    <option value="quarter">This Quarter</option>
-                    <option value="all">All Time</option>
+            <form method="GET" action="" style="display: flex; align-items: center; gap: 15px;">
+                <label for="period" style="font-weight: 600; color: #667eea;">Time Period:</label>
+                <select id="period" name="period" onchange="this.form.submit()">
+                    <option value="week" <?php echo $period === 'week' ? 'selected' : ''; ?>>This Week</option>
+                    <option value="month" <?php echo $period === 'month' ? 'selected' : ''; ?>>This Month</option>
+                    <option value="quarter" <?php echo $period === 'quarter' ? 'selected' : ''; ?>>This Quarter</option>
+                    <option value="all" <?php echo $period === 'all' ? 'selected' : ''; ?>>All Time</option>
                 </select>
-            </div>
-            <button class="refresh-btn" onclick="loadDashboardData()">🔄 Refresh Data</button>
+            </form>
+            <button class="refresh-btn" onclick="window.location.reload()">🔄 Refresh Data</button>
         </div>
 
-        <div id="kpiSection" class="kpi-grid">
-            <!-- KPI cards will be loaded here -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon">👥</div>
+                <div class="kpi-title">Active Students</div>
+                <div class="kpi-value"><?php echo $activeStudents; ?></div>
+                <div class="kpi-subtitle">Currently enrolled</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">📅</div>
+                <div class="kpi-title">Total Sessions</div>
+                <div class="kpi-value"><?php echo $totalSessions; ?></div>
+                <div class="kpi-subtitle">Completed this period</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">⏱️</div>
+                <div class="kpi-title">Total Hours</div>
+                <div class="kpi-value"><?php echo number_format($totalHours, 1); ?></div>
+                <div class="kpi-subtitle">Teaching time</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">⭐</div>
+                <div class="kpi-title">Average Rating</div>
+                <div class="kpi-value"><?php echo $avgRating; ?></div>
+                <div class="kpi-subtitle">Student feedback</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">✅</div>
+                <div class="kpi-title">Completion Rate</div>
+                <div class="kpi-value"><?php echo $completionRate; ?>%</div>
+                <div class="kpi-subtitle">Sessions completed</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">💰</div>
+                <div class="kpi-title">Total Earnings</div>
+                <div class="kpi-value">$<?php echo number_format($totalEarnings, 2); ?></div>
+                <div class="kpi-subtitle">This period</div>
+            </div>
         </div>
 
         <div class="students-section">
             <h2>👥 My Students</h2>
-            <div id="studentList" class="student-list">
-                <div class="loading">Loading students...</div>
-            </div>
-        </div>
-
-        <div class="chart-section">
-            <h2>📈 Session Activity Overview</h2>
-            <div class="chart-container">
-                <div class="bar-chart" id="barChart">
-                    <!-- Bars will be generated dynamically -->
-                </div>
+            <div class="student-list">
+                <?php if (empty($students)): ?>
+                    <p style="text-align: center; color: #666;">No students enrolled yet.</p>
+                <?php else: ?>
+                    <?php foreach ($students as $student): ?>
+                        <?php 
+                        $initials = strtoupper(substr($student['first_name'], 0, 1) . substr($student['last_name'], 0, 1));
+                        ?>
+                        <div class="student-card">
+                            <div class="student-avatar"><?php echo $initials; ?></div>
+                            <div class="student-info">
+                                <h3><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></h3>
+                                <p><?php echo htmlspecialchars($student['email']); ?></p>
+                            </div>
+                            <div class="student-stats">
+                                <span class="stat-badge badge-sessions"><?php echo $student['session_count']; ?> sessions</span>
+                                <span class="stat-badge badge-status"><?php echo htmlspecialchars($student['status']); ?></span>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-
-    <script>
-        // Get tutor ID from session/URL (modify as needed for your auth system)
-        const tutorUserId = getCurrentTutorId(); // You'll need to implement this
-        
-        function getCurrentTutorId() {
-            // This should get the current logged-in tutor's ID
-            // For now, return a placeholder - replace with your auth logic
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('tutorId') || sessionStorage.getItem('tutorUserId') || 1;
-        }
-
-        async function loadDashboardData() {
-            try {
-                // Load tutor profile
-                await loadTutorProfile();
-                
-                // Load KPIs
-                await loadKPIs();
-                
-                // Load students
-                await loadStudents();
-                
-                // Load chart data
-                await loadChartData();
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-            }
-        }
-
-        async function loadTutorProfile() {
-            try {
-                // Replace with your actual API endpoint
-                const response = await fetch(`/api/tutorprofiles.php?userId=${tutorUserId}`);
-                const tutor = await response.json();
-                
-                document.getElementById('tutorName').textContent = tutor.firstName + ' ' + tutor.lastName;
-                document.getElementById('tutorRate').textContent = '$' + tutor.hourlyRate + '/hr';
-            } catch (error) {
-                console.error('Error loading tutor profile:', error);
-                // Fallback for demo
-                document.getElementById('tutorName').textContent = 'Tutor Name';
-                document.getElementById('tutorRate').textContent = '$25.00/hr';
-            }
-        }
-
-        async function loadKPIs() {
-            try {
-                // Replace with your actual API endpoint
-                const response = await fetch(`/api/kpi.php?tutorId=${tutorUserId}`);
-                const kpiData = await response.json();
-                
-                displayKPIs(kpiData);
-            } catch (error) {
-                console.error('Error loading KPIs:', error);
-                // Display demo data
-                displayKPIs({
-                    activeStudents: 12,
-                    totalSessions: 45,
-                    totalHours: 67.5,
-                    averageRating: 4.8,
-                    completionRate: 92,
-                    totalEarnings: 1687.50
-                });
-            }
-        }
-
-        function displayKPIs(data) {
-            const kpiSection = document.getElementById('kpiSection');
-            kpiSection.innerHTML = `
-                <div class="kpi-card">
-                    <div class="kpi-icon">👥</div>
-                    <div class="kpi-title">Active Students</div>
-                    <div class="kpi-value">${data.activeStudents || 0}</div>
-                    <div class="kpi-subtitle">Currently enrolled</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">📅</div>
-                    <div class="kpi-title">Total Sessions</div>
-                    <div class="kpi-value">${data.totalSessions || 0}</div>
-                    <div class="kpi-subtitle">Completed this period</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">⏱️</div>
-                    <div class="kpi-title">Total Hours</div>
-                    <div class="kpi-value">${data.totalHours || 0}</div>
-                    <div class="kpi-subtitle">Teaching time</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">⭐</div>
-                    <div class="kpi-title">Average Rating</div>
-                    <div class="kpi-value">${data.averageRating || 0}</div>
-                    <div class="kpi-subtitle">Student feedback</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">✅</div>
-                    <div class="kpi-title">Completion Rate</div>
-                    <div class="kpi-value">${data.completionRate || 0}%</div>
-                    <div class="kpi-subtitle">Sessions completed</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-icon">💰</div>
-                    <div class="kpi-title">Total Earnings</div>
-                    <div class="kpi-value">$${data.totalEarnings || 0}</div>
-                    <div class="kpi-subtitle">This period</div>
-                </div>
-            `;
-        }
-
-        async function loadStudents() {
-            try {
-                // Replace with your actual API endpoint
-                const response = await fetch(`/api/enrollments.php?tutorId=${tutorUserId}`);
-                const students = await response.json();
-                
-                displayStudents(students);
-            } catch (error) {
-                console.error('Error loading students:', error);
-                // Display demo data
-                displayStudents([
-                    { id: 1, name: 'John Doe', email: 'john@example.com', sessions: 8, status: 'active' },
-                    { id: 2, name: 'Jane Smith', email: 'jane@example.com', sessions: 12, status: 'active' },
-                    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', sessions: 5, status: 'pending' }
-                ]);
-            }
-        }
-
-        function displayStudents(students) {
-            const studentList = document.getElementById('studentList');
-            
-            if (!students || students.length === 0) {
-                studentList.innerHTML = '<p style="text-align: center; color: #666;">No students enrolled yet.</p>';
-                return;
-            }
-
-            studentList.innerHTML = students.map(student => {
-                const initials = student.name.split(' ').map(n => n[0]).join('');
-                return `
-                    <div class="student-card">
-                        <div class="student-avatar">${initials}</div>
-                        <div class="student-info">
-                            <h3>${student.name}</h3>
-                            <p>${student.email}</p>
-                        </div>
-                        <div class="student-stats">
-                            <span class="stat-badge badge-sessions">${student.sessions || 0} sessions</span>
-                            <span class="stat-badge badge-status">${student.status || 'active'}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        async function loadChartData() {
-            try {
-                // Replace with your actual API endpoint
-                const response = await fetch(`/api/sessions-chart.php?tutorId=${tutorUserId}`);
-                const chartData = await response.json();
-                
-                createBarChart(chartData.values, chartData.labels);
-            } catch (error) {
-                console.error('Error loading chart data:', error);
-                // Display demo data
-                createBarChart([5, 8, 12, 9, 11], ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5']);
-            }
-        }
-
-        function createBarChart(values, labels) {
-            const barChart = document.getElementById('barChart');
-            barChart.innerHTML = '';
-            
-            const maxValue = Math.max(...values);
-            
-            values.forEach((value, index) => {
-                const barContainer = document.createElement('div');
-                barContainer.style.flex = '1';
-                barContainer.style.display = 'flex';
-                barContainer.style.flexDirection = 'column';
-                barContainer.style.alignItems = 'center';
-                
-                const barWrapper = document.createElement('div');
-                barWrapper.style.width = '100%';
-                barWrapper.style.height = '250px';
-                barWrapper.style.display = 'flex';
-                barWrapper.style.alignItems = 'flex-end';
-                barWrapper.style.justifyContent = 'center';
-                barWrapper.style.position = 'relative';
-                
-                const bar = document.createElement('div');
-                const height = (value / maxValue) * 100;
-                bar.className = 'bar';
-                bar.style.height = height + '%';
-                bar.style.width = '80%';
-                
-                const barValue = document.createElement('div');
-                barValue.className = 'bar-value';
-                barValue.textContent = value;
-                
-                bar.appendChild(barValue);
-                barWrapper.appendChild(bar);
-                
-                const label = document.createElement('div');
-                label.className = 'bar-label';
-                label.textContent = labels[index];
-                
-                barContainer.appendChild(barWrapper);
-                barContainer.appendChild(label);
-                barChart.appendChild(barContainer);
-            });
-        }
-
-        // Load dashboard on page load
-        window.onload = function() {
-            loadDashboardData();
-        };
-    </script>
 </body>
 </html>

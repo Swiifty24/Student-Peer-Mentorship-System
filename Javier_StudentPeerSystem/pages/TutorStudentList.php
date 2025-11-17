@@ -1,9 +1,116 @@
+<?php
+session_start();
+require_once '../classes/database.php';
+
+// Check if user is logged in and is a tutor
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'tutor') {
+    header("Location: ../login.php");
+    exit();
+}
+
+$conn = new Database();
+$pdo = $conn->connect();
+$tutorUserId = $_SESSION['user_id'];
+
+// Get tutor information
+$stmt = $pdo->prepare("SELECT * FROM tutorprofiles WHERE user_id = ?");
+$stmt->execute([$tutorUserId]);
+$tutorProfile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Get filter parameters
+$searchTerm = isset($_GET['search']) ? $_GET['search'] : '';
+$statusFilter = isset($_GET['status']) ? $_GET['status'] : 'all';
+$courseFilter = isset($_GET['course']) ? $_GET['course'] : 'all';
+
+// Build the query with filters
+$query = "SELECT 
+          u.user_id, u.first_name, u.last_name, u.email,
+          c.course_name,
+          e.status,
+          e.enrollment_id,
+          COUNT(s.session_id) as session_count,
+          MAX(s.session_date) as last_session,
+          MIN(CASE WHEN s.session_date > CURDATE() THEN s.session_date END) as next_session,
+          AVG(r.rating) as avg_rating
+          FROM enrollments e
+          JOIN users u ON e.student_id = u.user_id
+          JOIN courses c ON e.course_id = c.course_id
+          LEFT JOIN sessions s ON e.enrollment_id = s.enrollment_id AND s.status = 'completed'
+          LEFT JOIN ratings r ON e.enrollment_id = r.enrollment_id
+          WHERE e.tutor_id = ?";
+
+$params = [$tutorProfile['tutor_id']];
+
+if (!empty($searchTerm)) {
+    $query .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)";
+    $searchParam = "%$searchTerm%";
+    $params[] = $searchParam;
+    $params[] = $searchParam;
+    $params[] = $searchParam;
+}
+
+if ($statusFilter !== 'all') {
+    $query .= " AND e.status = ?";
+    $params[] = $statusFilter;
+}
+
+if ($courseFilter !== 'all') {
+    $query .= " AND c.course_id = ?";
+    $params[] = $courseFilter;
+}
+
+$query .= " GROUP BY u.user_id, u.first_name, u.last_name, u.email, c.course_name, e.status, e.enrollment_id
+            ORDER BY session_count DESC";
+
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get statistics
+$totalStudents = count($students);
+$activeStudents = count(array_filter($students, function($s) { return $s['status'] === 'active'; }));
+$pendingStudents = count(array_filter($students, function($s) { return $s['status'] === 'pending'; }));
+$avgSessions = $totalStudents > 0 ? round(array_sum(array_column($students, 'session_count')) / $totalStudents) : 0;
+
+// Get course list for filter
+$stmt = $pdo->prepare("SELECT DISTINCT c.course_id, c.course_name 
+                       FROM courses c
+                       JOIN enrollments e ON c.course_id = e.course_id
+                       WHERE e.tutor_id = ?
+                       ORDER BY c.course_name");
+$stmt->execute([$tutorProfile['tutor_id']]);
+$courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Handle CSV export
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="students_' . date('Y-m-d') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    fputcsv($output, ['Name', 'Email', 'Course', 'Status', 'Sessions', 'Next Session', 'Rating']);
+    
+    foreach ($students as $student) {
+        fputcsv($output, [
+            $student['first_name'] . ' ' . $student['last_name'],
+            $student['email'],
+            $student['course_name'],
+            $student['status'],
+            $student['session_count'],
+            $student['next_session'] ?? 'N/A',
+            round($student['avg_rating'] ?? 0, 1)
+        ]);
+    }
+    
+    fclose($output);
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Students - Tutor Portal</title>
+    <title>My Students - Student Peer Mentorship</title>
     <style>
         * {
             margin: 0;
@@ -40,6 +147,16 @@
         .header p {
             color: #666;
             font-size: 1.1em;
+        }
+
+        .back-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
 
         .controls {
@@ -89,6 +206,8 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .btn-primary {
@@ -184,6 +303,7 @@
             justify-content: center;
             color: white;
             font-weight: bold;
+            flex-shrink: 0;
         }
 
         .name-info h3 {
@@ -232,11 +352,12 @@
             border-radius: 5px;
             cursor: pointer;
             transition: all 0.2s;
+            text-decoration: none;
+            color: white;
         }
 
         .btn-view {
             background: #667eea;
-            color: white;
         }
 
         .btn-view:hover {
@@ -245,7 +366,6 @@
 
         .btn-message {
             background: #28a745;
-            color: white;
         }
 
         .btn-message:hover {
@@ -288,51 +408,63 @@
 </head>
 <body>
     <div class="container">
+        <a href="tutor_dashboard.php" class="back-btn">← Back to Dashboard</a>
+        
         <div class="header">
             <h1>👥 My Students</h1>
             <p>Manage and track your enrolled students</p>
         </div>
 
-        <div class="controls">
+        <form method="GET" action="" class="controls">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 Search students by name or email..." onkeyup="filterStudents()">
+                <input type="text" name="search" placeholder="🔍 Search students by name or email..." 
+                       value="<?php echo htmlspecialchars($searchTerm); ?>">
             </div>
             
-            <select class="filter-select" id="statusFilter" onchange="filterStudents()">
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
+            <select class="filter-select" name="status" onchange="this.form.submit()">
+                <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Status</option>
+                <option value="active" <?php echo $statusFilter === 'active' ? 'selected' : ''; ?>>Active</option>
+                <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                <option value="completed" <?php echo $statusFilter === 'completed' ? 'selected' : ''; ?>>Completed</option>
             </select>
 
-            <select class="filter-select" id="courseFilter" onchange="filterStudents()">
+            <select class="filter-select" name="course" onchange="this.form.submit()">
                 <option value="all">All Courses</option>
+                <?php foreach ($courses as $course): ?>
+                    <option value="<?php echo $course['course_id']; ?>" 
+                            <?php echo $courseFilter == $course['course_id'] ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($course['course_name']); ?>
+                    </option>
+                <?php endforeach; ?>
             </select>
 
-            <button class="btn btn-primary" onclick="exportData()">📥 Export</button>
-        </div>
+            <button type="submit" class="btn btn-primary">🔍 Search</button>
+        </form>
+
+        <a href="?export=csv<?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo $statusFilter !== 'all' ? '&status=' . $statusFilter : ''; ?><?php echo $courseFilter !== 'all' ? '&course=' . $courseFilter : ''; ?>" 
+           class="btn btn-primary" style="margin-bottom: 20px;">📥 Export CSV</a>
 
         <div class="stats-bar">
             <div class="stat-item">
-                <div class="stat-value" id="totalStudents">0</div>
+                <div class="stat-value"><?php echo $totalStudents; ?></div>
                 <div class="stat-label">Total Students</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="activeStudents">0</div>
+                <div class="stat-value"><?php echo $activeStudents; ?></div>
                 <div class="stat-label">Active</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="pendingStudents">0</div>
+                <div class="stat-value"><?php echo $pendingStudents; ?></div>
                 <div class="stat-label">Pending</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="avgSessions">0</div>
+                <div class="stat-value"><?php echo $avgSessions; ?></div>
                 <div class="stat-label">Avg Sessions</div>
             </div>
         </div>
 
         <div class="table-container">
-            <table id="studentsTable">
+            <table>
                 <thead>
                     <tr>
                         <th>Student</th>
@@ -344,227 +476,45 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="7" class="no-data">Loading students...</td>
-                    </tr>
+                <tbody>
+                    <?php if (empty($students)): ?>
+                        <tr>
+                            <td colspan="7" class="no-data">No students found</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($students as $student): ?>
+                            <?php 
+                            $initials = strtoupper(substr($student['first_name'], 0, 1) . substr($student['last_name'], 0, 1));
+                            $rating = round($student['avg_rating'] ?? 0);
+                            $stars = str_repeat('⭐', $rating);
+                            ?>
+                            <tr>
+                                <td>
+                                    <div class="student-name">
+                                        <div class="avatar"><?php echo $initials; ?></div>
+                                        <div class="name-info">
+                                            <h3><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></h3>
+                                            <p><?php echo htmlspecialchars($student['email']); ?></p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><?php echo htmlspecialchars($student['course_name']); ?></td>
+                                <td><span class="badge badge-<?php echo $student['status']; ?>"><?php echo ucfirst($student['status']); ?></span></td>
+                                <td><?php echo $student['session_count']; ?></td>
+                                <td><?php echo $student['next_session'] ? date('M d, Y', strtotime($student['next_session'])) : 'N/A'; ?></td>
+                                <td><span class="rating-stars"><?php echo $stars ?: 'N/A'; ?></span></td>
+                                <td>
+                                    <div class="action-btns">
+                                        <a href="student_details.php?id=<?php echo $student['user_id']; ?>" class="btn-sm btn-view">View</a>
+                                        <a href="messages.php?user=<?php echo $student['user_id']; ?>" class="btn-sm btn-message">Message</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
-
-    <script>
-        let studentsData = [];
-        const tutorUserId = getCurrentTutorId();
-
-        function getCurrentTutorId() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('tutorId') || sessionStorage.getItem('tutorUserId') || 1;
-        }
-
-        async function loadStudents() {
-            try {
-                // Replace with your actual API endpoint
-                const response = await fetch(`/api/tutor-students.php?tutorId=${tutorUserId}`);
-                studentsData = await response.json();
-                
-                displayStudents(studentsData);
-                updateStats(studentsData);
-                loadCourseFilter();
-            } catch (error) {
-                console.error('Error loading students:', error);
-                // Load demo data
-                studentsData = generateDemoData();
-                displayStudents(studentsData);
-                updateStats(studentsData);
-                loadCourseFilter();
-            }
-        }
-
-        function generateDemoData() {
-            return [
-                {
-                    id: 1,
-                    firstName: 'John',
-                    lastName: 'Doe',
-                    email: 'john.doe@email.com',
-                    courseName: 'Mathematics 101',
-                    status: 'active',
-                    sessions: 12,
-                    nextSession: '2024-11-20',
-                    rating: 5
-                },
-                {
-                    id: 2,
-                    firstName: 'Jane',
-                    lastName: 'Smith',
-                    email: 'jane.smith@email.com',
-                    courseName: 'Physics Advanced',
-                    status: 'active',
-                    sessions: 8,
-                    nextSession: '2024-11-19',
-                    rating: 4
-                },
-                {
-                    id: 3,
-                    firstName: 'Mike',
-                    lastName: 'Johnson',
-                    email: 'mike.j@email.com',
-                    courseName: 'Chemistry Basics',
-                    status: 'pending',
-                    sessions: 3,
-                    nextSession: '2024-11-21',
-                    rating: 5
-                },
-                {
-                    id: 4,
-                    firstName: 'Sarah',
-                    lastName: 'Williams',
-                    email: 'sarah.w@email.com',
-                    courseName: 'Mathematics 101',
-                    status: 'active',
-                    sessions: 15,
-                    nextSession: '2024-11-18',
-                    rating: 5
-                },
-                {
-                    id: 5,
-                    firstName: 'David',
-                    lastName: 'Brown',
-                    email: 'david.b@email.com',
-                    courseName: 'Biology 201',
-                    status: 'completed',
-                    sessions: 20,
-                    nextSession: '-',
-                    rating: 4
-                }
-            ];
-        }
-
-        function displayStudents(students) {
-            const tableBody = document.getElementById('tableBody');
-            
-            if (!students || students.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="7" class="no-data">No students found</td></tr>';
-                return;
-            }
-
-            tableBody.innerHTML = students.map(student => {
-                const initials = `${student.firstName[0]}${student.lastName[0]}`;
-                const stars = '⭐'.repeat(student.rating || 0);
-                const statusClass = `badge-${student.status}`;
-                
-                return `
-                    <tr>
-                        <td>
-                            <div class="student-name">
-                                <div class="avatar">${initials}</div>
-                                <div class="name-info">
-                                    <h3>${student.firstName} ${student.lastName}</h3>
-                                    <p>${student.email}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td>${student.courseName}</td>
-                        <td><span class="badge ${statusClass}">${student.status}</span></td>
-                        <td>${student.sessions}</td>
-                        <td>${student.nextSession}</td>
-                        <td><span class="rating-stars">${stars}</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-sm btn-view" onclick="viewStudent(${student.id})">View</button>
-                                <button class="btn-sm btn-message" onclick="messageStudent(${student.id})">Message</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function updateStats(students) {
-            const total = students.length;
-            const active = students.filter(s => s.status === 'active').length;
-            const pending = students.filter(s => s.status === 'pending').length;
-            const avgSessions = total > 0 ? Math.round(students.reduce((sum, s) => sum + s.sessions, 0) / total) : 0;
-
-            document.getElementById('totalStudents').textContent = total;
-            document.getElementById('activeStudents').textContent = active;
-            document.getElementById('pendingStudents').textContent = pending;
-            document.getElementById('avgSessions').textContent = avgSessions;
-        }
-
-        function loadCourseFilter() {
-            const courses = [...new Set(studentsData.map(s => s.courseName))];
-            const courseFilter = document.getElementById('courseFilter');
-            
-            courseFilter.innerHTML = '<option value="all">All Courses</option>';
-            courses.forEach(course => {
-                courseFilter.innerHTML += `<option value="${course}">${course}</option>`;
-            });
-        }
-
-        function filterStudents() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            const courseFilter = document.getElementById('courseFilter').value;
-
-            const filtered = studentsData.filter(student => {
-                const matchesSearch = 
-                    student.firstName.toLowerCase().includes(searchTerm) ||
-                    student.lastName.toLowerCase().includes(searchTerm) ||
-                    student.email.toLowerCase().includes(searchTerm);
-                
-                const matchesStatus = statusFilter === 'all' || student.status === statusFilter;
-                const matchesCourse = courseFilter === 'all' || student.courseName === courseFilter;
-
-                return matchesSearch && matchesStatus && matchesCourse;
-            });
-
-            displayStudents(filtered);
-            updateStats(filtered);
-        }
-
-        function viewStudent(studentId) {
-            window.location.href = `student-details.html?id=${studentId}`;
-        }
-
-        function messageStudent(studentId) {
-            alert(`Opening message dialog for student ID: ${studentId}`);
-            // Implement messaging functionality
-        }
-
-        function exportData() {
-            const csv = convertToCSV(studentsData);
-            downloadCSV(csv, 'students_data.csv');
-        }
-
-        function convertToCSV(data) {
-            const headers = ['Name', 'Email', 'Course', 'Status', 'Sessions', 'Next Session', 'Rating'];
-            const rows = data.map(s => [
-                `${s.firstName} ${s.lastName}`,
-                s.email,
-                s.courseName,
-                s.status,
-                s.sessions,
-                s.nextSession,
-                s.rating
-            ]);
-
-            return [headers, ...rows].map(row => row.join(',')).join('\n');
-        }
-
-        function downloadCSV(csv, filename) {
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        }
-
-        // Load students on page load
-        window.onload = loadStudents;
-    </script>
 </body>
 </html>
