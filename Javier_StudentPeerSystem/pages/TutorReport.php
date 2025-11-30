@@ -1,10 +1,10 @@
 <?php
 session_start();
-require_once '../classes/database.class.php';
+require_once '../classes/database.php';
 
 // Check if user is logged in and is a tutor
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'tutor') {
-    header("Location: ../login.php");
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['isTutorNow']) || $_SESSION['isTutorNow'] != 1) {
+    header("Location: login.php");
     exit();
 }
 
@@ -13,7 +13,7 @@ $pdo = $conn->connect();
 $tutorUserId = $_SESSION['user_id'];
 
 // Get tutor information
-$stmt = $pdo->prepare("SELECT * FROM tutorprofiles WHERE user_id = ?");
+$stmt = $pdo->prepare("SELECT * FROM tutorprofiles WHERE userID = ?");
 $stmt->execute([$tutorUserId]);
 $tutorProfile = $stmt->fetch(PDO::FETCH_ASSOC);
 
