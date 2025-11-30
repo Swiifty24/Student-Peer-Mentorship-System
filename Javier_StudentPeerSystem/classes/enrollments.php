@@ -1,129 +1,231 @@
 <?php
 
+
 require_once 'database.php';
+require_once 'notifications.php';
+//require_once 'emailService.php';
+require_once 'users.php';
+require_once 'courses.php';
 
 class Enrollment {
-    // Properties matching your database table columns for a session request
+    private $conn;
+    private $table = 'enrollments';
+    private $notificationManager;
+    private $emailService;
+    private $userManager;
+    private $courseManager;
+    
+    public $enrollmentID;
     public $studentUserID;
     public $tutorUserID;
     public $courseID;
     public $sessionDetails;
-    // status 0: Requested (default), 1: Confirmed, 2: Cancelled/Declined, 3: Completed
-
-    protected $db;
-
+    public $status;
+    public $requestDate;
+    
     public function __construct() {
-        $this->db = new Database();
+        $database = new Database();
+        $this->conn = $database->connect();
+        $this->notificationManager = new Notification();
+        $this->userManager = new User();
+        $this->courseManager = new Course();
     }
-
-    /**
-     * Inserts a new session request into the database.
-     * @return bool True on success, False on failure.
-     */
+    
     public function requestSession() {
-        $status = 0; // Default status: Requested
-        $requestDate = date('Y-m-d H:i:s');
-        
-        $sql = "INSERT INTO enrollments (
-                    studentUserID, tutorUserID, courseID, 
-                    sessionDetails, status, requestDate
-                ) VALUES (
-                    :studentUserID, :tutorUserID, :courseID, 
-                    :sessionDetails, :status, :requestDate
-                )";
-
         try {
-            $query = $this->db->connect()->prepare($sql);
+            $query = "INSERT INTO " . $this->table . " 
+                      (studentUserID, tutorUserID, courseID, sessionDetails, status, requestDate) 
+                      VALUES (:studentUserID, :tutorUserID, :courseID, :sessionDetails, 0, NOW())";
             
-            $query->bindParam(':studentUserID', $this->studentUserID, PDO::PARAM_INT);
-            $query->bindParam(':tutorUserID', $this->tutorUserID, PDO::PARAM_INT);
-            $query->bindParam(':courseID', $this->courseID, PDO::PARAM_INT);
-            $query->bindParam(':sessionDetails', $this->sessionDetails, PDO::PARAM_STR);
-            $query->bindParam(':status', $status, PDO::PARAM_INT);
-            $query->bindParam(':requestDate', $requestDate, PDO::PARAM_STR);
-
-            return $query->execute();
+            $stmt = $this->conn->prepare($query);
+            
+            $stmt->bindParam(':studentUserID', $this->studentUserID);
+            $stmt->bindParam(':tutorUserID', $this->tutorUserID);
+            $stmt->bindParam(':courseID', $this->courseID);
+            $stmt->bindParam(':sessionDetails', $this->sessionDetails);
+            
+            if ($stmt->execute()) {
+                $enrollmentID = $this->conn->lastInsertId();
+                
+                // Get user and course names for notifications
+                $studentName = $this->userManager->getUserFullNameByID($this->studentUserID);
+                $courseName = $this->courseManager->getCourseNameByID($this->courseID);
+                
+                // Create system notification for tutor
+                $notificationMessage = "New tutoring request from $studentName for $courseName";
+                $this->notificationManager->create(
+                    $this->tutorUserID, 
+                    'request', 
+                    $notificationMessage,
+                    $enrollmentID
+                );
+                
+                // Send email notification to tutor (if they have email notifications enabled)
+                if ($tutorInfo && isset($tutorInfo['email'])) {
+                    $tutorFullName = $tutorInfo['firstName'] . ' ' . $tutorInfo['lastName'];
+                    $this->emailService->sendNewRequestNotification(
+                        $tutorInfo['email'],
+                        $tutorFullName,
+                        $studentName,
+                        $courseName
+                    );
+                }
+                
+                return true;
+            }
+            
+            return false;
         } catch (PDOException $e) {
-            // Error handling or logging
-            error_log("Database Error in requestSession: " . $e->getMessage());
+            error_log("Request session error: " . $e->getMessage());
             return false;
         }
     }
-
-    /**
-     * Fetches all session requests for a specific tutor.
-     * @param int $tutorID The ID of the tutor.
-     * @return array List of enrollment requests.
-     */
-    public function getRequestsByTutor($tutorID) {
-        // Only fetch requests that are 'Requested' (0) or 'Confirmed' (1) and order by request date.
-        $sql = "SELECT * FROM enrollments WHERE tutorUserID = :tutorID AND status IN (0, 1) ORDER BY requestDate DESC";
+    
+    public function updateStatus($enrollmentID, $newStatus) {
         try {
-            $query = $this->db->connect()->prepare($sql);
-            $query->bindParam(':tutorID', $tutorID, PDO::PARAM_INT);
-            $query->execute();
-            return $query->fetchAll(PDO::FETCH_ASSOC);
+            // First, get enrollment details for notifications
+            $enrollmentQuery = "SELECT studentUserID, tutorUserID, courseID 
+                               FROM " . $this->table . " 
+                               WHERE enrollmentID = :enrollmentID";
+            $enrollmentStmt = $this->conn->prepare($enrollmentQuery);
+            $enrollmentStmt->bindParam(':enrollmentID', $enrollmentID);
+            $enrollmentStmt->execute();
+            $enrollment = $enrollmentStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$enrollment) {
+                return false;
+            }
+            
+            // Map string status to integer
+            $statusMap = [
+                'Confirmed' => 1,
+                'Cancelled' => 2,
+                'Completed' => 3
+            ];
+            
+            $statusCode = $statusMap[$newStatus] ?? 0;
+            
+            $query = "UPDATE " . $this->table . " 
+                      SET status = :status 
+                      WHERE enrollmentID = :enrollmentID";
+            
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':status', $statusCode);
+            $stmt->bindParam(':enrollmentID', $enrollmentID);
+            
+            if ($stmt->execute()) {
+                // Get names for notifications
+                $studentInfo = $this->userManager->getUserByID($enrollment['studentUserID']);
+                $tutorName = $this->userManager->getUserFullNameByID($enrollment['tutorUserID']);
+                $courseName = $this->courseManager->getCourseNameByID($enrollment['courseID']);
+                
+                // Send appropriate notifications based on status
+                if ($newStatus === 'Confirmed') {
+                    // Notify student
+                    $message = "Your tutoring request for $courseName with $tutorName has been confirmed!";
+                    $this->notificationManager->create(
+                        $enrollment['studentUserID'],
+                        'confirmation',
+                        $message,
+                        $enrollmentID
+                    );
+                    
+                    // Send confirmation email
+                    if ($studentInfo) {
+                        $studentFullName = $studentInfo['firstName'] . ' ' . $studentInfo['lastName'];
+                        $this->emailService->sendRequestConfirmedEmail(
+                            $studentInfo['email'],
+                            $studentFullName,
+                            $tutorName,
+                            $courseName
+                        );
+                    }
+                    
+                } elseif ($newStatus === 'Cancelled') {
+                    // Notify student
+                    $message = "Your tutoring request for $courseName has been declined by $tutorName.";
+                    $this->notificationManager->create(
+                        $enrollment['studentUserID'],
+                        'cancellation',
+                        $message,
+                        $enrollmentID
+                    );
+                    
+                } elseif ($newStatus === 'Completed') {
+                    // Notify student
+                    $message = "Your tutoring session for $courseName with $tutorName has been completed!";
+                    $this->notificationManager->create(
+                        $enrollment['studentUserID'],
+                        'completion',
+                        $message,
+                        $enrollmentID
+                    );
+                    
+                    // Send completion email
+                    if ($studentInfo) {
+                        $studentFullName = $studentInfo['firstName'] . ' ' . $studentInfo['lastName'];
+                        $this->emailService->sendSessionCompletedEmail(
+                            $studentInfo['email'],
+                            $studentFullName,
+                            $tutorName,
+                            $courseName
+                        );
+                    }
+                }
+                
+                return true;
+            }
+            
+            return false;
         } catch (PDOException $e) {
-            error_log("Database Error in getRequestsByTutor: " . $e->getMessage());
+            error_log("Update status error: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    public function getRequestsByTutor($tutorUserID) {
+        try {
+            $query = "SELECT * FROM " . $this->table . " 
+                      WHERE tutorUserID = :tutorUserID 
+                      ORDER BY requestDate DESC";
+            
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':tutorUserID', $tutorUserID);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Get requests error: " . $e->getMessage());
             return [];
         }
     }
-
-    /**
-     * Updates the status of a session request/enrollment.
-     * @param int $enrollmentID The ID of the enrollment record.
-     * @param string $statusString 'Confirmed' or 'Cancelled'.
-     * @return bool True on success, False on failure.
-     */
-    public function updateStatus($enrollmentID, $statusString) {
-        // Map string status from tutorRequests.php to integer status for the database
-        $statusCode = 0; // Default to Requested (0)
-        switch ($statusString) {
-            case 'Confirmed':
-                $statusCode = 1;
-                break;
-            case 'Cancelled':
-                $statusCode = 2; // Cancelled/Declined
-                break;
-            case 'Completed':
-                $statusCode = 3; // Completed
-                break;
-        }
-
-        $sql = "UPDATE enrollments SET status = :status WHERE enrollmentID = :enrollmentID";
-
+    
+    public function getRequestsByStudent($studentUserID) {
         try {
-            $query = $this->db->connect()->prepare($sql);
+            $query = "SELECT * FROM " . $this->table . " 
+                      WHERE studentUserID = :studentUserID 
+                      ORDER BY requestDate DESC";
             
-            $query->bindParam(':status', $statusCode, PDO::PARAM_INT);
-            $query->bindParam(':enrollmentID', $enrollmentID, PDO::PARAM_INT);
-
-            return $query->execute();
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':studentUserID', $studentUserID);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            // Error handling or logging:
-            error_log("Database Error in updateStatus: " . $e->getMessage());
-            return false;
+            error_log("Get student requests error: " . $e->getMessage());
+            return [];
         }
     }
-
-    /**
-     * Maps the integer status code to a readable string.
-     * @param int $statusCode The status code (0=Requested, 1=Confirmed, 2=Cancelled/Declined, 3=Completed).
-     * @return string The human-readable status.
-     */
+    
     public function getStatusString($statusCode) {
-        switch ($statusCode) {
-            case 0:
-                return 'Requested';
-            case 1:
-                return 'Confirmed';
-            case 2:
-                return 'Cancelled/Declined';
-            case 3:
-                return 'Completed';
-            default:
-                return 'Unknown Status';
-        }
+        $statusMap = [
+            0 => 'Requested',
+            1 => 'Confirmed',
+            2 => 'Cancelled',
+            3 => 'Completed'
+        ];
+        
+        return $statusMap[$statusCode] ?? 'Unknown';
     }
 }
 ?>
