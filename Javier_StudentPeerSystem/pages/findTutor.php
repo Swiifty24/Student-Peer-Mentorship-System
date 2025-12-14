@@ -1,20 +1,30 @@
 <?php
-// pages/findTutor.php - FINAL FIX (Resolves Broken Layout)
-
 session_start();
 require_once '../classes/courses.php';
 require_once '../classes/tutorCourses.php';
 require_once '../classes/enrollments.php';
 require_once '../classes/users.php';
 require_once '../classes/tutorProfiles.php'; 
+require_once '../classes/csrf.php';
 
-// --- Security Check (Must be logged in) ---
+// Generate CSRF token
+$csrfToken = CSRF::generateToken();
+
+// Validate CSRF for POST requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!CSRF::validateToken($token)) {
+        die('Security validation failed. Please try again.');
+    }
+}
+
+// Security Check
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-// --- Initialization ---
+// Initialization
 $courseManager = new Course();
 $tutorCourseManager = new TutorCourse();
 $enrollmentManager = new Enrollment(); 
@@ -30,28 +40,22 @@ $isTutorNow = $_SESSION['isTutorNow'] ?? 0;
 $userFirstName = $_SESSION['first_name'] ?? 'Student'; 
 $pageTitle = "Find a Tutor";
 
-// Check for and fetch a status message
 if (isset($_GET['msg'])) {
     $message = htmlspecialchars($_GET['msg']);
 }
 
-// CORE FEATURE: Check if a profile exists even if inactive
 $hasExistingProfile = $tutorProfileManager->getProfile($currentStudentUserID) !== false;
 
-// --- CORE FEATURE LOGIC: Fetch Tutors (Default: All active tutors) ---
+// Fetch Tutors
 if ($selectedCourseID) {
-    // A course filter is applied
     $tutorsList = $tutorCourseManager->findTutorsByCourse($selectedCourseID);
     $courseName = $courseManager->getCourseNameByID($selectedCourseID);
-    
 } else {
-    // No course filter applied, fetch all active tutors with profiles
     $tutorsList = $tutorProfileManager->getAllActiveTutors();
 }
 
-// --- Retained Session Request POST Submission Logic ---
+// Handle Session Request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request_session') {
-    
     $enrollmentManager->studentUserID = $currentStudentUserID;
     $enrollmentManager->tutorUserID = filter_input(INPUT_POST, 'tutorUserID', FILTER_VALIDATE_INT);
     $enrollmentManager->courseID = filter_input(INPUT_POST, 'courseID', FILTER_VALIDATE_INT);
@@ -67,18 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $message = "Error: Invalid input for session request.";
     }
 
-    // Redirect to clear the POST data
     header("Location: findTutor.php?msg=" . urlencode($message));
     exit();
 }
 
-// CRITICAL FIX: Start output buffering BEFORE HTML output
 ob_start();
 ?>
 
 <div class="welcome-section">
     <h1>Welcome, <?php echo htmlspecialchars($userFirstName); ?>!</h1>
-    <p>Find the right peer mentor in **<?php echo htmlspecialchars($courseName); ?>** to help you succeed.</p>
+    <p>Find the right peer mentor in <strong><?php echo htmlspecialchars($courseName); ?></strong> to help you succeed.</p>
     <?php if ($message): ?>
         <p class="alert <?php echo strpos($message, 'Error') === 0 ? 'error' : 'success'; ?>">
             <?php echo htmlspecialchars($message); ?>
@@ -118,7 +120,7 @@ ob_start();
 
 <div class="tutor-list-grid">
     <?php if (empty($tutorsList)): ?>
-        <p class="no-results-message">No active tutors found <?php echo $selectedCourseID ? "for **" . htmlspecialchars($courseName) . "**" : ""; ?>.</p>
+        <p class="no-results-message">No active tutors found <?php echo $selectedCourseID ? "for <strong>" . htmlspecialchars($courseName) . "</strong>" : ""; ?>.</p>
     <?php else: ?>
         <?php foreach ($tutorsList as $tutor): 
             $tutorCourses = $tutorCourseManager->getAllCoursesTaughtByTutor($tutor['userID']);
@@ -149,12 +151,13 @@ ob_start();
     <?php endif; ?>
 </div>
 
-<div id="requestModal" class="modal" style="display: none;">
+<div id="requestModal" class="modal">
     <div class="modal-content">
         <span class="close" id="closeRequestModal">&times;</span>
         <h3>Request Session with <span id="tutorNameModal"></span></h3>
         <p id="modalMessage" class="alert success" style="display:none;"></p>
         <form method="POST" id="requestForm">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
             <input type="hidden" name="action" value="request_session">
             <input type="hidden" name="tutorUserID" id="tutorUserIDInput">
             
@@ -175,7 +178,7 @@ ob_start();
         const tutorNameSpan = document.getElementById('tutorNameModal');
         const tutorUserIDInput = document.getElementById('tutorUserIDInput');
         const courseSelect = document.getElementById('courseID');
-        const closeModal = modal.querySelector('.close');
+        const closeModal = document.getElementById('closeRequestModal');
 
         // Function to open the modal
         document.querySelectorAll('.request-session-btn').forEach(button => {
@@ -185,12 +188,10 @@ ob_start();
                 const coursesJSON = this.getAttribute('data-courses');
                 const preselectedCourseID = this.getAttribute('data-preselect-course');
                 
-                // Set modal data
                 tutorNameSpan.textContent = tutorName;
                 tutorUserIDInput.value = tutorID;
 
-                // Populate courses
-                courseSelect.innerHTML = ''; // Clear previous options
+                courseSelect.innerHTML = '';
                 const availableCourses = coursesJSON ? JSON.parse(coursesJSON) : [];
                 
                 if (availableCourses.length === 0) {
@@ -210,19 +211,17 @@ ob_start();
                     document.getElementById('requestForm').querySelector('button[type="submit"]').disabled = false;
                 }
 
-                // Reset and show modal
                 document.getElementById('modalMessage').style.display = 'none';
                 document.getElementById('sessionDetails').value = '';
-                modal.style.display = "flex"; // Use flex to center the modal
+                modal.style.display = "flex";
             });
         });
 
-        // Close modal actions
+        // Close modal
         closeModal.addEventListener('click', function() {
             modal.style.display = 'none';
         });
 
-        // Modal closing script (clicking outside)
         window.addEventListener('click', function(event) {
             if (event.target === modal) {
                 modal.style.display = "none";
@@ -231,10 +230,7 @@ ob_start();
     });
 </script>
 
-
 <?php
-// CRITICAL FIX: End output buffering and capture content
 $pageContent = ob_get_clean(); 
-// CRITICAL FIX: Include the common template
 include 'template.php'; 
 ?>

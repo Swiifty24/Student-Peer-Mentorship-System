@@ -14,47 +14,46 @@ class TutorCourse {
     }
 
     /**
-     * Finds available tutors offering a specific course (used when a filter is applied).
+     * Finds available tutors offering a specific course.
      * @param int $courseID The ID of the course to search for.
-     * @return array List of tutor details (userID, firstName, lastName, tutorBio, hourlyRate, availabilityDetails, nextAvailableDate, availableTime).
+     * @return array List of tutor details.
      */
     public function findTutorsByCourse($courseID) {
-    $sql = "SELECT 
-                u.userID, 
-                u.firstName, 
-                u.lastName, 
-                tp.tutorBio, 
-                tp.hourlyRate, 
-                tp.availabilityDetails
-            FROM 
-                users u
-            JOIN 
-                tutorCourses tc ON u.userID = tc.userID
-            JOIN 
-                tutorProfiles tp ON u.userID = tp.userID
-            WHERE 
-                tc.courseID = :courseID 
-            AND 
-                u.isTutorNow = 1
-            ORDER BY 
-                u.lastName";
+        $sql = "SELECT 
+                    u.userID, 
+                    u.firstName, 
+                    u.lastName, 
+                    tp.tutorBio, 
+                    tp.hourlyRate, 
+                    tp.availabilityDetails
+                FROM 
+                    users u
+                JOIN 
+                    tutorCourses tc ON u.userID = tc.userID
+                JOIN 
+                    tutorProfiles tp ON u.userID = tp.userID
+                WHERE 
+                    tc.courseID = :courseID 
+                AND 
+                    u.isTutorNow = 1
+                ORDER BY 
+                    u.lastName";
 
-    try {
-        $query = $this->db->connect()->prepare($sql);
-        $query->bindParam(':courseID', $courseID, PDO::PARAM_INT);
-        $query->execute();
-        return $query->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        echo "Tutor Find Error: " . $e->getMessage();
-        return [];
+        try {
+            $query = $this->db->connect()->prepare($sql);
+            $query->bindParam(':courseID', $courseID, PDO::PARAM_INT);
+            $query->execute();
+            return $query->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Tutor Find Error: " . $e->getMessage());
+            return [];
+        }
     }
-}
     
     /**
      * Retrieves all course names or IDs that a tutor teaches.
-     * Used for display on tutor cards.
      * @param int $userID The ID of the tutor.
-     * @param bool $returnIDs If true, returns an array of course IDs. If false, returns an array of course names.
+     * @param bool $returnIDs If true, returns an array of course IDs. If false, returns course names.
      * @return array List of course names or IDs.
      */
     public function getAllCoursesTaughtByTutor($userID, $returnIDs = false) {
@@ -77,7 +76,7 @@ class TutorCourse {
             
             $results = $query->fetchAll(PDO::FETCH_COLUMN, 0);
             
-            return $results; // Returns array of names or IDs
+            return $results;
         } catch (PDOException $e) {
             error_log("Database Error in getAllCoursesTaughtByTutor: " . $e->getMessage());
             return [];
@@ -85,10 +84,10 @@ class TutorCourse {
     }
 
     /**
-     * FIX FOR ERROR: Retrieves all courses a tutor teaches, including course name and subject area.
-     * Used to populate the course dropdown in the session request modal.
+     * Retrieves all courses a tutor teaches with subject area.
+     * Used for the session request modal.
      * @param int $userID The ID of the tutor.
-     * @return array List of courses (courseID, courseName, subjectArea).
+     * @return array List of courses with courseID, courseName, subjectArea.
      */
     public function getTutorCoursesWithSubjectArea($userID) {
         $sql = "SELECT 
@@ -115,11 +114,8 @@ class TutorCourse {
         }
     }
 
-
     /**
-     * Saves the courses taught by a tutor using a transaction:
-     * 1. Removes all existing course links.
-     * 2. Inserts the new links.
+     * Saves courses for a tutor using a transaction.
      * @param int $userID
      * @param array $courseIDs
      * @return bool True on success, False on failure.
@@ -128,15 +124,14 @@ class TutorCourse {
         $dbConnection = $this->db->connect();
         
         try {
-            // Start transaction
             $dbConnection->beginTransaction();
 
-            // 1. Delete all existing courses for this tutor
+            // Delete existing courses
             $deleteSql = "DELETE FROM tutorCourses WHERE userID = :userID";
             $deleteQuery = $dbConnection->prepare($deleteSql);
             $deleteQuery->execute([':userID' => $userID]); 
 
-            // 2. Insert new courses (only if there are courses to insert)
+            // Insert new courses
             if (!empty($courseIDs)) {
                 $insertSql = "INSERT INTO tutorCourses (userID, courseID) VALUES (:userID, :courseID)";
                 $insertQuery = $dbConnection->prepare($insertSql);
@@ -149,12 +144,10 @@ class TutorCourse {
                 }
             }
 
-            // Commit transaction
             $dbConnection->commit();
             return true;
 
         } catch (PDOException $e) {
-            // Rollback on error
             $dbConnection->rollBack();
             error_log("Course Save Error: " . $e->getMessage());
             return false;

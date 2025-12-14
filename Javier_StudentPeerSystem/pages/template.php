@@ -1,6 +1,4 @@
 <?php 
-// template.php - WITH NOTIFICATION BELL
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -31,7 +29,6 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
             justify-content: center;
         }
         
-        /* Notification Bell Styles */
         .notification-bell {
             position: relative;
             display: inline-block;
@@ -159,29 +156,12 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
             text-align: center;
             color: #888;
         }
-        
-        .notification-footer {
-            padding: 10px;
-            text-align: center;
-            border-top: 1px solid #e0e0e0;
-        }
-        
-        .view-all-link {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 13px;
-        }
-        
-        .view-all-link:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
     <header>
         <h1><a href="findTutor.php" style="text-decoration: none; color: inherit;">PeerMentor Connect</a></h1>
         <nav>
-            <!-- Notification Bell -->
             <div class="notification-bell" id="notificationBell">
                 <span class="bell-icon">🔔</span>
                 <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
@@ -226,15 +206,33 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
     <script>
         // NOTIFICATION SYSTEM
         let notificationsData = [];
+        let notificationInterval; // FIXED: Declare outside functions
         
-        // Load notifications on page load
+        function loadNotifications() {
+            fetch('getNotifications.php')
+                .then(response => {
+                    if (response.status === 401) {
+                        if (notificationInterval) {
+                            clearInterval(notificationInterval);
+                        }
+                        return null;
+                    }
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        notificationsData = data.notifications;
+                        updateNotificationUI(data.notifications, data.unreadCount);
+                    }
+                })
+                .catch(error => console.error('Error loading notifications:', error));
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             loadNotifications();
+            notificationInterval = setInterval(loadNotifications, 30000);
             
-            // Refresh notifications every 30 seconds
-            setInterval(loadNotifications, 30000);
-            
-            // Toggle notification dropdown
             const bellIcon = document.getElementById('notificationBell');
             const dropdown = document.getElementById('notificationDropdown');
             
@@ -243,19 +241,17 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
                 dropdown.classList.toggle('show');
             });
             
-            // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
                 if (!bellIcon.contains(e.target)) {
                     dropdown.classList.remove('show');
                 }
             });
             
-            // Mark all as read
             document.getElementById('markAllRead').addEventListener('click', function() {
                 markAllAsRead();
             });
             
-            // LOGOUT MODAL LOGIC
+            // LOGOUT MODAL
             const logoutModal = document.getElementById('logoutModal');
             const logoutButton = document.getElementById('logoutButton');
             const confirmLogout = document.getElementById('confirmLogout');
@@ -289,23 +285,10 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
             }
         });
         
-        function loadNotifications() {
-            fetch('getNotifications.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        notificationsData = data.notifications;
-                        updateNotificationUI(data.notifications, data.unreadCount);
-                    }
-                })
-                .catch(error => console.error('Error loading notifications:', error));
-        }
-        
         function updateNotificationUI(notifications, unreadCount) {
             const badge = document.getElementById('notificationBadge');
             const list = document.getElementById('notificationList');
             
-            // Update badge
             if (unreadCount > 0) {
                 badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
                 badge.style.display = 'block';
@@ -313,7 +296,6 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
                 badge.style.display = 'none';
             }
             
-            // Update list
             if (notifications.length === 0) {
                 list.innerHTML = '<div class="no-notifications">No notifications yet</div>';
                 return;

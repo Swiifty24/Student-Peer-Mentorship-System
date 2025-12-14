@@ -3,6 +3,17 @@
 session_start();
 require_once '../classes/database.php';
 
+$currentTime = time();
+$lastRequest = $_SESSION['last_notification_request'] ?? 0;
+
+if ($currentTime - $lastRequest < 1) {
+    http_response_code(429); // Too Many Requests
+    echo json_encode(['success' => false, 'message' => 'Too many requests']);
+    exit();
+}
+
+$_SESSION['last_notification_request'] = $currentTime;
+
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {

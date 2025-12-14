@@ -1,6 +1,5 @@
 <?php
 
-
 require_once 'database.php';
 require_once 'notifications.php';
 //require_once 'emailService.php';
@@ -29,6 +28,7 @@ class Enrollment {
         $this->notificationManager = new Notification();
         $this->userManager = new User();
         $this->courseManager = new Course();
+        // $this->emailService = new EmailService(); // Uncomment when email service is ready
     }
     
     public function requestSession() {
@@ -60,15 +60,21 @@ class Enrollment {
                     $enrollmentID
                 );
                 
+                // FIXED LINE 64: Get tutor info before using it
+                $tutorInfo = $this->userManager->getUserByID($this->tutorUserID);
+                
                 // Send email notification to tutor (if they have email notifications enabled)
                 if ($tutorInfo && isset($tutorInfo['email'])) {
                     $tutorFullName = $tutorInfo['firstName'] . ' ' . $tutorInfo['lastName'];
+                    // COMMENTED OUT: Uncomment when emailService is implemented
+                    /*
                     $this->emailService->sendNewRequestNotification(
                         $tutorInfo['email'],
                         $tutorFullName,
                         $studentName,
                         $courseName
                     );
+                    */
                 }
                 
                 return true;
@@ -130,15 +136,18 @@ class Enrollment {
                         $enrollmentID
                     );
                     
-                    // Send confirmation email
+                    // FIXED LINE 118: Send confirmation email
                     if ($studentInfo) {
                         $studentFullName = $studentInfo['firstName'] . ' ' . $studentInfo['lastName'];
+                        // COMMENTED OUT: Uncomment when emailService is implemented
+                        /*
                         $this->emailService->sendRequestConfirmedEmail(
                             $studentInfo['email'],
                             $studentFullName,
                             $tutorName,
                             $courseName
                         );
+                        */
                     }
                     
                 } elseif ($newStatus === 'Cancelled') {
@@ -164,12 +173,15 @@ class Enrollment {
                     // Send completion email
                     if ($studentInfo) {
                         $studentFullName = $studentInfo['firstName'] . ' ' . $studentInfo['lastName'];
+                        // COMMENTED OUT: Uncomment when emailService is implemented
+                        /*
                         $this->emailService->sendSessionCompletedEmail(
                             $studentInfo['email'],
                             $studentFullName,
                             $tutorName,
                             $courseName
                         );
+                        */
                     }
                 }
                 
@@ -183,19 +195,22 @@ class Enrollment {
         }
     }
     
-    public function getRequestsByTutor($tutorUserID) {
+    public function getRequestsByTutor($tutorUserID, $limit = 20, $offset = 0) {
         try {
             $query = "SELECT * FROM " . $this->table . " 
                       WHERE tutorUserID = :tutorUserID 
-                      ORDER BY requestDate DESC";
-            
+                      ORDER BY requestDate DESC
+                      LIMIT :limit OFFSET :offset";
+        
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':tutorUserID', $tutorUserID);
+            $stmt->bindParam(':tutorUserID', $tutorUserID, PDO::PARAM_INT);
+            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();
-            
+        
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            error_log("Get requests error: " . $e->getMessage());
+            error_log("Get tutor requests error: " . $e->getMessage());
             return [];
         }
     }

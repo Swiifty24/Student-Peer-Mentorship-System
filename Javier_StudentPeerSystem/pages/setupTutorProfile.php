@@ -6,8 +6,20 @@ require_once '../classes/users.php';
 require_once '../classes/tutorProfiles.php';
 require_once '../classes/tutorcourses.php';
 require_once '../classes/courses.php'; 
+require_once '../classes/csrf.php';
 
-// --- Security Check ---
+// Generate CSRF token
+$csrfToken = CSRF::generateToken();
+
+// Validate CSRF for POST requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!CSRF::validateToken($token)) {
+        die('Security validation failed. Please try again.');
+    }
+}
+
+// Security Check
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -22,13 +34,13 @@ $userManager = new User();
 
 $allCourses = $courseManager->getAllCourses(); 
 
-// Default values for pre-filling the form
+// Default values
 $initialBio = '';
 $initialRate = '';
 $initialAvailability = '';
 $existingCourseIDs = []; 
 
-// Load existing profile if available
+// Load existing profile
 $existingProfile = $tutorProfile->getProfile($currentUserID);
 
 if ($existingProfile) {
@@ -36,12 +48,11 @@ if ($existingProfile) {
     $initialRate = $existingProfile['hourlyRate'];
     $initialAvailability = $existingProfile['availabilityDetails'];
     
-    // Load the course IDs the tutor currently teaches
     $existingCourses = $tutorCourseManager->getAllCoursesTaughtByTutor($currentUserID, true);
     $existingCourseIDs = array_column($existingCourses, 'courseID'); 
 }
 
-// --- Handle Form Submission ---
+// Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tutorBio = trim($_POST['tutorBio'] ?? '');
     $hourlyRate = filter_input(INPUT_POST, 'hourlyRate', FILTER_VALIDATE_FLOAT);
@@ -83,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Check for URL message
 if (isset($_GET['msg'])) {
     $message = htmlspecialchars($_GET['msg']);
 }
@@ -102,6 +112,7 @@ ob_start();
 
 <div class="profile-form-container">
     <form method="POST" action="setupTutorProfile.php">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
 
         <label for="tutorBio">Tutor Bio (Min 10 chars)</label>
         <textarea name="tutorBio" id="tutorBio" rows="4" required><?php echo htmlspecialchars($initialBio); ?></textarea>
@@ -143,13 +154,15 @@ ob_start();
     </form>
 </div>
 
-<div id="addCourseModal" class="modal" style="display: none;">
+<div id="addCourseModal" class="modal">
     <div class="modal-content">
         <span class="close" id="closeAddCourseModal">&times;</span>
         <h3>Add New Course</h3>
         <p id="modalMessage" class="alert success" style="display:none;"></p>
         
         <form id="addCourseForm">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+            
             <label for="newCourseName">Course Name (e.g., General Chemistry)</label>
             <input type="text" name="newCourseName" id="newCourseName" required>
 
@@ -169,23 +182,20 @@ ob_start();
         const addCourseForm = document.getElementById('addCourseForm');
         const modalMessage = document.getElementById('modalMessage');
 
-        // Open modal when clicking the link
         if(openBtn) {
             openBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent default link behavior
+                e.preventDefault();
                 modalMessage.style.display = 'none';
                 modal.style.display = "flex";
             });
         }
 
-        // Close modal
         if(closeBtn) {
             closeBtn.addEventListener('click', function() {
                 modal.style.display = "none";
             });
         }
         
-        // Handle form submission
         addCourseForm.addEventListener('submit', function(event) {
             event.preventDefault();
             
@@ -212,8 +222,8 @@ ob_start();
 
                     setTimeout(() => {
                         modal.style.display = "none";
-                        alert('New course added successfully! Please refresh this page to select it for your profile.');
-                    }, 1000); 
+                        location.reload(); // Reload to show new course
+                    }, 1500); 
                 } else {
                     modalMessage.className = 'alert error';
                 }
@@ -230,7 +240,6 @@ ob_start();
             });
         });
         
-        // Close modal when clicking outside
         window.addEventListener('click', function(event) {
             if (event.target === modal) {
                 modal.style.display = "none";

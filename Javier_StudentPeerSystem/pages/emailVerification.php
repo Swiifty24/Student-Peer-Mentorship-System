@@ -25,9 +25,11 @@ if (isset($_GET['token'])) {
         
         if ($user) {
             // Check if token is expired
-            if (strtotime($user['tokenExpiry']) < time()) {
+           if ($user['tokenExpiry'] && strtotime($user['tokenExpiry']) < time()) {
                 $message = "Verification link has expired. Please request a new verification email.";
-            } else {
+        } elseif (!$user['tokenExpiry']) {
+                $message = "Invalid verification link.";
+        } else {
                 // Verify the user
                 $updateQuery = "UPDATE users 
                                SET isVerified = 1, 
