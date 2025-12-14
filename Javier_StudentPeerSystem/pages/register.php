@@ -1,15 +1,5 @@
 <?php
-// Load environment variables from .env file
-require_once '../classes/envLoader.php';
-EnvLoader::load(__DIR__ . '/../.env');
-
-// Secure session configuration
-session_start([
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'Strict',
-    // 'cookie_secure' => true, // Uncomment when using HTTPS
-    'use_strict_mode' => true
-]);
+require_once 'init.php';
 
 require_once '../classes/users.php';
 require_once '../classes/csrf.php';
@@ -87,14 +77,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->bindParam(':email', $email);
                         $stmt->execute();
 
-                        // Send verification email
+                        // TEMPORARY: Auto-verify users while Gmail authentication is being fixed
+                        // TODO: Remove this bypass once Gmail/SendGrid is working properly
+                        error_log("Auto-verifying user (Gmail auth bypass active): $email");
+                        $autoVerify = "UPDATE users SET isVerified = 1, verificationToken = NULL, tokenExpiry = NULL WHERE email = :email";
+                        $verifyStmt = $conn->prepare($autoVerify);
+                        $verifyStmt->bindParam(':email', $email);
+                        $verifyStmt->execute();
+
+                        // Still attempt to send verification email (will fail silently with current Gmail issue)
                         $emailService = new EmailService();
                         $emailSent = $emailService->sendVerificationEmail($email, $firstName, $verificationToken);
 
                         if ($emailSent) {
                             error_log("Verification email sent to: $email");
                         } else {
-                            error_log("Failed to send verification email to: $email");
+                            error_log("Failed to send verification email to: $email (using auto-verify bypass)");
                         }
                     } catch (Exception $e) {
                         error_log("Error setting verification token: " . $e->getMessage());
@@ -131,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <?php if (!empty($message)): ?>
             <div class="alert error">
-                <?php echo $message; ?>
+                <?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 

@@ -1,15 +1,5 @@
 <?php
-// Load environment variables
-require_once '../classes/envLoader.php';
-EnvLoader::load(__DIR__ . '/../.env');
-
-// Secure session configuration
-session_start([
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'Strict',
-    // 'cookie_secure' => true, // Uncomment when using HTTPS
-    'use_strict_mode' => true
-]);
+require_once 'init.php';
 
 require_once '../classes/users.php';
 require_once '../classes/csrf.php';
@@ -21,7 +11,10 @@ $loggedInUser = null;
 // Generate CSRF token
 $csrfToken = CSRF::generateToken();
 
-if (isset($_GET['success'])) {
+// Check for success messages from URL
+if (isset($_GET['msg'])) {
+    $message = htmlspecialchars($_GET['msg'], ENT_QUOTES, 'UTF-8');
+} elseif (isset($_GET['success'])) {
     $message = "Registration successful! Please log in.";
 }
 

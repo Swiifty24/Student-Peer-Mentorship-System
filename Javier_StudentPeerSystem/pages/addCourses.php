@@ -1,11 +1,5 @@
 <?php
-// Secure session configuration
-session_start([
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'Strict',
-    // 'cookie_secure' => true, // Uncomment when using HTTPS
-    'use_strict_mode' => true
-]);
+require_once 'init.php';
 
 require_once '../classes/courses.php';
 require_once '../classes/csrf.php';

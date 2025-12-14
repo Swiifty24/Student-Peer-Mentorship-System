@@ -1,10 +1,10 @@
 <?php
-session_start();
+require_once 'init.php';
 $pageTitle = "Setup Tutor Profile";
 
 require_once '../classes/users.php';
 require_once '../classes/tutorProfiles.php';
-require_once '../classes/tutorcourses.php';
+require_once '../classes/tutorCourses.php';
 require_once '../classes/courses.php';
 require_once '../classes/csrf.php';
 
@@ -253,7 +253,7 @@ ob_start();
                 modal.style.display = "none";
             }
         });
-        
+
         // FLATPICKR DATE PICKER FOR AVAILABILITY
         flatpickr("#availabilityDetails", {
             enableTime: false,

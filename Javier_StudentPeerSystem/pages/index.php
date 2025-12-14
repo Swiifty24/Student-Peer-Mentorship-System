@@ -1,10 +1,5 @@
 <?php
-// Load environment variables
-require_once '../classes/envLoader.php';
-EnvLoader::load(__DIR__ . '/../.env');
-
-// Start session for consistency
-session_start();
+require_once 'init.php';
 
 // If the user is already logged in, redirect them to the appropriate primary page
 if (isset($_SESSION['user_id'])) {

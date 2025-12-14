@@ -4,12 +4,7 @@ require_once '../classes/envLoader.php';
 EnvLoader::load(__DIR__ . '/../.env');
 
 // Secure session configuration
-session_start([
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'Strict',
-    // 'cookie_secure' => true, // Uncomment when using HTTPS
-    'use_strict_mode' => true
-]);
+require_once 'init.php';
 
 require_once '../classes/database.php';
 require_once '../classes/notifications.php';

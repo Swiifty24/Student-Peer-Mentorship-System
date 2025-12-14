@@ -4,20 +4,20 @@ require_once '../classes/envLoader.php';
 EnvLoader::load(__DIR__ . '/../.env');
 
 // Secure session configuration
-session_start([
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'Strict',
-    // 'cookie_secure' => true, // Uncomment when using HTTPS
-    'use_strict_mode' => true
-]);
+require_once 'init.php';
 
+// Since we're auto-verifying users (Gmail bypass), redirect immediately to login
 // Get email from session if available
-$userEmail = $_SESSION['pending_verification_email'] ?? 'your email';
+$userEmail = $_SESSION['pending_verification_email'] ?? '';
 
 // Clear the session variable
 if (isset($_SESSION['pending_verification_email'])) {
     unset($_SESSION['pending_verification_email']);
 }
+
+// TEMPORARY: Auto-redirect to login since email verification is bypassed
+// Redirect to login with success message after 2 seconds
+header("refresh:2;url=login.php?msg=" . urlencode("Registration successful! Your account has been activated. Please log in."));
 ?>
 <!DOCTYPE html>
 <html lang="en">

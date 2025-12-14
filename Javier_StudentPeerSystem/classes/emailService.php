@@ -3,7 +3,7 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require_once '../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class EmailService
 {
@@ -32,6 +32,13 @@ class EmailService
             $this->mailer->Password = $smtpPassword;
             $this->mailer->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $this->mailer->Port = $smtpPort;
+
+            // Enable debugging (set to 0 in production)
+            // 0 = off, 1 = client messages, 2 = client and server messages
+            $this->mailer->SMTPDebug = getenv('APP_ENV') === 'development' ? 2 : 0;
+            $this->mailer->Debugoutput = function ($str, $level) {
+                error_log("SMTP Debug: $str");
+            };
 
             // Set from address
             $this->mailer->setFrom($this->fromEmail, $this->fromName);

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once 'init.php';
 require_once '../classes/database.php';
 require_once '../classes/enrollments.php';
 
@@ -60,11 +60,19 @@ if (!empty($searchTerm)) {
 
 if ($statusFilter !== 'all') {
     $statusCode = null;
-    switch($statusFilter) {
-        case 'requested': $statusCode = 0; break;
-        case 'confirmed': $statusCode = 1; break;
-        case 'cancelled': $statusCode = 2; break;
-        case 'completed': $statusCode = 3; break;
+    switch ($statusFilter) {
+        case 'requested':
+            $statusCode = 0;
+            break;
+        case 'confirmed':
+            $statusCode = 1;
+            break;
+        case 'cancelled':
+            $statusCode = 2;
+            break;
+        case 'completed':
+            $statusCode = 3;
+            break;
     }
     if ($statusCode !== null) {
         $query .= " AND e.status = ?";
@@ -86,8 +94,10 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get statistics
 $totalStudents = count($students);
-$activeStudents = count(array_filter($students, function($s) { return $s['status'] == 1; }));
-$pendingStudents = count(array_filter($students, function($s) { return $s['status'] == 0; }));
+$activeStudents = count(array_filter($students, function ($s) {
+    return $s['status'] == 1; }));
+$pendingStudents = count(array_filter($students, function ($s) {
+    return $s['status'] == 0; }));
 $avgSessions = $totalStudents > 0 ? round(array_sum(array_column($students, 'session_count')) / $totalStudents) : 0;
 
 // FIXED: Get course list for filter
@@ -103,10 +113,10 @@ $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="students_' . date('Y-m-d') . '.csv"');
-    
+
     $output = fopen('php://output', 'w');
     fputcsv($output, ['Name', 'Email', 'Course', 'Status', 'Sessions', 'Next Session', 'Rating']);
-    
+
     foreach ($students as $student) {
         $statusName = $enrollmentMgr->getStatusString($student['status']);
         fputcsv($output, [
@@ -119,13 +129,14 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             round($student['avg_rating'] ?? 0, 1)
         ]);
     }
-    
+
     fclose($output);
     exit();
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -155,13 +166,20 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             padding: 35px;
             border-radius: 20px;
             margin-bottom: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: slideDown 0.5s ease;
         }
 
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .header h1 {
@@ -188,13 +206,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             border-radius: 10px;
             margin-bottom: 15px;
             font-weight: 600;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
         }
 
         .back-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         }
 
         .controls {
@@ -202,7 +220,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
@@ -211,8 +229,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .search-box {
@@ -280,7 +303,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 25px;
@@ -288,8 +311,15 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         }
 
         @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         .stat-item {
@@ -327,7 +357,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             background: white;
             padding: 30px;
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
             overflow-x: auto;
             animation: fadeIn 0.8s ease;
         }
@@ -487,7 +517,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 font-size: 0.85em;
             }
 
-            th, td {
+            th,
+            td {
                 padding: 12px 8px;
             }
 
@@ -497,10 +528,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <a href="tutorRequests.php" class="back-btn">← Back to Dashboard</a>
-        
+
         <div class="header">
             <h1>👥 My Students</h1>
             <p>Manage and track your enrolled students</p>
@@ -508,23 +540,26 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 
         <form method="GET" action="" class="controls">
             <div class="search-box">
-                <input type="text" name="search" placeholder="🔍 Search students by name or email..." 
-                       value="<?php echo htmlspecialchars($searchTerm); ?>">
+                <input type="text" name="search" placeholder="🔍 Search students by name or email..."
+                    value="<?php echo htmlspecialchars($searchTerm); ?>">
             </div>
-            
+
             <select class="filter-select" name="status" onchange="this.form.submit()">
                 <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Status</option>
-                <option value="requested" <?php echo $statusFilter === 'requested' ? 'selected' : ''; ?>>Requested</option>
-                <option value="confirmed" <?php echo $statusFilter === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
-                <option value="completed" <?php echo $statusFilter === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                <option value="requested" <?php echo $statusFilter === 'requested' ? 'selected' : ''; ?>>Requested
+                </option>
+                <option value="confirmed" <?php echo $statusFilter === 'confirmed' ? 'selected' : ''; ?>>Confirmed
+                </option>
+                <option value="completed" <?php echo $statusFilter === 'completed' ? 'selected' : ''; ?>>Completed
+                </option>
+                <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled
+                </option>
             </select>
 
             <select class="filter-select" name="course" onchange="this.form.submit()">
                 <option value="all">All Courses</option>
                 <?php foreach ($courses as $course): ?>
-                    <option value="<?php echo $course['courseID']; ?>" 
-                            <?php echo $courseFilter == $course['courseID'] ? 'selected' : ''; ?>>
+                    <option value="<?php echo $course['courseID']; ?>" <?php echo $courseFilter == $course['courseID'] ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars($course['courseName']); ?>
                     </option>
                 <?php endforeach; ?>
@@ -533,8 +568,8 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             <button type="submit" class="btn btn-primary">🔍 Search</button>
         </form>
 
-        <a href="?export=csv<?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo $statusFilter !== 'all' ? '&status=' . $statusFilter : ''; ?><?php echo $courseFilter !== 'all' ? '&course=' . $courseFilter : ''; ?>" 
-           class="btn btn-primary" style="margin-bottom: 25px;">📥 Export CSV</a>
+        <a href="?export=csv<?php echo !empty($searchTerm) ? '&search=' . urlencode($searchTerm) : ''; ?><?php echo $statusFilter !== 'all' ? '&status=' . $statusFilter : ''; ?><?php echo $courseFilter !== 'all' ? '&course=' . $courseFilter : ''; ?>"
+            class="btn btn-primary" style="margin-bottom: 25px;">📥 Export CSV</a>
 
         <div class="stats-bar">
             <div class="stat-item">
@@ -577,17 +612,25 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         </tr>
                     <?php else: ?>
                         <?php foreach ($students as $student): ?>
-                            <?php 
+                            <?php
                             $initials = strtoupper(substr($student['firstName'], 0, 1) . substr($student['lastName'], 0, 1));
                             $rating = round($student['avg_rating'] ?? 0);
                             $stars = str_repeat('⭐', $rating);
                             $statusName = $enrollmentMgr->getStatusString($student['status']);
                             $statusClass = '';
-                            switch($student['status']) {
-                                case 0: $statusClass = 'requested'; break;
-                                case 1: $statusClass = 'confirmed'; break;
-                                case 2: $statusClass = 'cancelled'; break;
-                                case 3: $statusClass = 'completed'; break;
+                            switch ($student['status']) {
+                                case 0:
+                                    $statusClass = 'requested';
+                                    break;
+                                case 1:
+                                    $statusClass = 'confirmed';
+                                    break;
+                                case 2:
+                                    $statusClass = 'cancelled';
+                                    break;
+                                case 3:
+                                    $statusClass = 'completed';
+                                    break;
                             }
                             ?>
                             <tr>
@@ -595,15 +638,19 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                     <div class="student-name">
                                         <div class="avatar"><?php echo $initials; ?></div>
                                         <div class="name-info">
-                                            <h3><?php echo htmlspecialchars($student['firstName'] . ' ' . $student['lastName']); ?></h3>
+                                            <h3><?php echo htmlspecialchars($student['firstName'] . ' ' . $student['lastName']); ?>
+                                            </h3>
                                             <p><?php echo htmlspecialchars($student['email']); ?></p>
                                         </div>
                                     </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($student['courseName']); ?></td>
-                                <td><span class="badge badge-<?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusName); ?></span></td>
+                                <td><span
+                                        class="badge badge-<?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusName); ?></span>
+                                </td>
                                 <td><?php echo $student['session_count']; ?></td>
-                                <td><?php echo $student['next_session'] ? date('M d, Y', strtotime($student['next_session'])) : 'N/A'; ?></td>
+                                <td><?php echo $student['next_session'] ? date('M d, Y', strtotime($student['next_session'])) : 'N/A'; ?>
+                                </td>
                                 <td><span class="rating-stars"><?php echo $stars ?: 'N/A'; ?></span></td>
                             </tr>
                         <?php endforeach; ?>
@@ -613,4 +660,5 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         </div>
     </div>
 </body>
+
 </html>

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once 'init.php';
 require_once '../classes/database.php';
 
 // Check if user is logged in and is a tutor
@@ -27,7 +27,7 @@ if (!$tutorProfile) {
 // Get time period filter
 $period = isset($_GET['period']) ? $_GET['period'] : 'month';
 $dateCondition = "";
-switch($period) {
+switch ($period) {
     case 'week':
         $dateCondition = "AND s.sessionDate >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
         break;
@@ -120,6 +120,7 @@ $weeklyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -127,17 +128,19 @@ $weeklyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="../styles/reports.css" rel="stylesheet">
 </head>
+
 <body class="report-page">
     <div class="report-container">
         <a href="tutorRequests.php" class="back-btn">← Back to Dashboard</a>
-        
+
         <div class="header">
             <div class="header-left">
                 <h1>📊 Performance Dashboard</h1>
                 <p>Track your mentorship impact and student progress</p>
             </div>
             <div class="tutor-info">
-                <div class="tutor-name"><?php echo htmlspecialchars($tutorProfile['firstName'] . ' ' . $tutorProfile['lastName']); ?></div>
+                <div class="tutor-name">
+                    <?php echo htmlspecialchars($tutorProfile['firstName'] . ' ' . $tutorProfile['lastName']); ?></div>
                 <div class="tutor-rate">$<?php echo number_format($tutorProfile['hourlyRate'] ?? 0, 2); ?>/hr</div>
             </div>
         </div>
@@ -209,14 +212,14 @@ $weeklyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <p>No students enrolled yet. Start accepting requests to build your mentorship network!</p>
                     </div>
                 <?php else: ?>
-                    <?php 
+                    <?php
                     require_once '../classes/enrollments.php';
                     $enrollmentManager = new Enrollment();
 
-                    foreach ($students as $student): 
+                    foreach ($students as $student):
                         $initials = strtoupper(substr($student['firstName'], 0, 1) . substr($student['lastName'], 0, 1));
                         $statusString = $enrollmentManager->getStatusString($student['status_code']);
-                    ?>
+                        ?>
                         <div class="student-card">
                             <div class="student-avatar"><?php echo $initials; ?></div>
                             <div class="student-info">
@@ -234,4 +237,5 @@ $weeklyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 </body>
+
 </html>

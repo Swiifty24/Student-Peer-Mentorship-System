@@ -1,6 +1,5 @@
 <?php
-// FIXED: Added session_start() at the top
-session_start();
+require_once 'init.php';
 require_once '../classes/database.php';
 
 $currentTime = time();
@@ -28,21 +27,21 @@ $pdo = $conn->connect();
 // Handle POST actions (mark as read)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
+
     if ($action === 'mark_read' && isset($_POST['notificationID'])) {
         $notificationID = filter_input(INPUT_POST, 'notificationID', FILTER_VALIDATE_INT);
-        
+
         $stmt = $pdo->prepare("UPDATE notifications SET isRead = 1 WHERE notificationID = ? AND userID = ?");
         $success = $stmt->execute([$notificationID, $userId]);
-        
+
         echo json_encode(['success' => $success]);
         exit();
     }
-    
+
     if ($action === 'mark_all_read') {
         $stmt = $pdo->prepare("UPDATE notifications SET isRead = 1 WHERE userID = ?");
         $success = $stmt->execute([$userId]);
-        
+
         echo json_encode(['success' => $success]);
         exit();
     }
@@ -60,18 +59,18 @@ try {
     ");
     $stmt->execute([$userId]);
     $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Count unread
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE userID = ? AND isRead = 0");
     $stmt->execute([$userId]);
     $unreadCount = $stmt->fetchColumn();
-    
+
     echo json_encode([
         'success' => true,
         'notifications' => $notifications,
         'unreadCount' => $unreadCount
     ]);
-    
+
 } catch (PDOException $e) {
     echo json_encode([
         'success' => false,

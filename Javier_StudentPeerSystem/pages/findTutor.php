@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once 'init.php';
 require_once '../classes/courses.php';
 require_once '../classes/tutorCourses.php';
 require_once '../classes/enrollments.php';
