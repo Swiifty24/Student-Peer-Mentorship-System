@@ -1,5 +1,5 @@
 <?php
-// pages/getNotifications.php
+// FIXED: Added session_start() at the top
 session_start();
 require_once '../classes/database.php';
 

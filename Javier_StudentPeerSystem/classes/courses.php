@@ -2,10 +2,12 @@
 
 require_once 'database.php';
 
-class Course {
+class Course
+{
     protected $db;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->db = new Database();
     }
 
@@ -13,7 +15,8 @@ class Course {
      * Fetches all courses for the filter dropdown.
      * @return array List of courses.
      */
-    public function getAllCourses() {
+    public function getAllCourses()
+    {
         $sql = "SELECT courseID, courseName, subjectArea FROM courses ORDER BY subjectArea, courseName";
         try {
             $query = $this->db->connect()->prepare($sql);
@@ -33,7 +36,8 @@ class Course {
      * @param string $subjectArea
      * @return bool True on success, False on failure.
      */
-    public function addCourse($courseName, $subjectArea) {
+    public function addCourse($courseName, $subjectArea)
+    {
         $sql = "INSERT INTO courses (courseName, subjectArea) VALUES (:courseName, :subjectArea)";
         try {
             $query = $this->db->connect()->prepare($sql);
@@ -51,7 +55,8 @@ class Course {
      * @param int $courseID
      * @return string The course name or a default message.
      */
-    public function getCourseNameByID($courseID) {
+    public function getCourseNameByID($courseID)
+    {
         $sql = "SELECT courseName FROM courses WHERE courseID = :courseID";
         try {
             $query = $this->db->connect()->prepare($sql);
@@ -65,4 +70,3 @@ class Course {
         }
     }
 }
-?>

@@ -3,15 +3,19 @@
 /* ---------------------------------- */
 :root {
     /* Primary brand color: A deep, professional Teal/Blue */
-    --primary-color: #00796B;       
-    /* Accent color: A vibrant Coral/Orange for CTAs and focus elements */
-    --accent-color: #FF7043;        
+    /* Primary brand color: Purple Theme */
+    --primary-color: #667eea;
+    /* Accent color: Darker Purple for hover/secondary */
+    --accent-color: #764ba2;
     /* Muted success/positive action color */
-    --success-color: #4CAF50;
-    --danger-color: #D32F2F;         /* Dark Red - Errors/Negative actions */
-    --text-color: #333333;           /* Dark Gray - Primary Text */
-    --secondary-text-color: #757575;  /* Muted Gray - Sub-text */
-    --background-light: #F8F9FA;     /* Very Light Gray - Page Background */
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    /* Standard Red */
+    --text-color: #1a202c;
+    /* Very Dark Gray for better contrast */
+    --secondary-text-color: #4a5568;
+    /* Darker Gray for sub-text */
+    --background-light: #f7fafc;
     --background-white: #ffffff;
     --border-color: #BDBDBD;
     --shadow-subtle: 0 4px 15px rgba(0, 0, 0, 0.08);
@@ -29,7 +33,7 @@
 /* Base body style */
 body {
     font-family: var(--font-stack);
-    background-color: var(--background-light); 
+    background-color: var(--background-light);
     color: var(--text-color);
     line-height: 1.6;
     margin: 0;
@@ -104,13 +108,14 @@ header nav a:hover {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: var(--background-light); 
+    background-color: var(--background-light);
 }
 
 /* ---------------------------------- */
 /* --- 4. Forms (login.php, register.php, setupTutorProfile.php) --- */
 /* ---------------------------------- */
-.form-container, .profile-form-container {
+.form-container,
+.profile-form-container {
     background-color: var(--background-white);
     padding: 40px;
     border-radius: var(--border-radius);
@@ -121,7 +126,8 @@ header nav a:hover {
 }
 
 .profile-form-container {
-    max-width: 750px; /* Wider for profile details/courses */
+    max-width: 750px;
+    /* Wider for profile details/courses */
 }
 
 label {
@@ -161,8 +167,11 @@ select:focus {
 /* ---------------------------------- */
 /* --- 5. Buttons & Alerts --- */
 /* ---------------------------------- */
-.primary-button, .cta-button, .btn {
-    display: block; /* Use block to occupy full width in forms */
+.primary-button,
+.cta-button,
+.btn {
+    display: block;
+    /* Use block to occupy full width in forms */
     width: 100%;
     padding: 12px 20px;
     font-weight: 600;
@@ -180,7 +189,8 @@ select:focus {
 }
 
 .primary-button:hover {
-    background-color: #005f56; /* Darker teal */
+    background-color: #005f56;
+    /* Darker teal */
     transform: translateY(-1px);
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
 }
@@ -204,6 +214,7 @@ select:focus {
     display: inline-block;
     padding: 10px 20px;
 }
+
 .btn.toggle-btn.deactivate {
     background-color: var(--danger-color);
     color: white;
@@ -212,6 +223,7 @@ select:focus {
     padding: 8px 15px;
     margin: 5px 0;
 }
+
 .btn.toggle-btn.deactivate:hover {
     background-color: #c0392b;
 }
@@ -227,13 +239,15 @@ select:focus {
 }
 
 .alert.success {
-    background-color: #E8F5E9; /* Light green background */
+    background-color: #E8F5E9;
+    /* Light green background */
     color: var(--success-color);
     border-color: var(--success-color);
 }
 
 .alert.error {
-    background-color: #FFEBEE; /* Light red background */
+    background-color: #FFEBEE;
+    /* Light red background */
     color: var(--danger-color);
     border-color: var(--danger-color);
 }
@@ -289,7 +303,8 @@ select:focus {
     margin-bottom: 15px;
 }
 
-.tutor-card .bio, .tutor-card .availability {
+.tutor-card .bio,
+.tutor-card .availability {
     color: var(--secondary-text-color);
     font-size: 0.95rem;
     margin-bottom: 15px;
@@ -332,15 +347,21 @@ select:focus {
 }
 
 .request-card .status.requested {
-    background-color: #FFF3E0; /* Light Orange */
-    color: #F57C00; /* Darker Orange */
+    background-color: #FFF3E0;
+    /* Light Orange */
+    color: #F57C00;
+    /* Darker Orange */
 }
+
 .request-card .status.confirmed {
-    background-color: #E8F5E9; /* Light Green */
-    color: var(--success-color); 
+    background-color: #E8F5E9;
+    /* Light Green */
+    color: var(--success-color);
 }
+
 .request-card .status.cancelled {
-    background-color: #FFEBEE; /* Light Red */
+    background-color: #FFEBEE;
+    /* Light Red */
     color: var(--danger-color);
 }
 
@@ -397,7 +418,7 @@ select:focus {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6);
+    background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -412,7 +433,7 @@ select:focus {
     margin: auto;
     padding: 30px;
     border-radius: var(--border-radius);
-    width: 90%; 
+    width: 90%;
     max-width: 400px;
     box-shadow: var(--shadow-main);
     position: relative;
@@ -465,11 +486,11 @@ select:focus {
     border-radius: 4px;
 }
 
-.checkbox-container:hover input ~ .checkmark {
+.checkbox-container:hover input~.checkmark {
     background-color: #ccc;
 }
 
-.checkbox-container input:checked ~ .checkmark {
+.checkbox-container input:checked~.checkmark {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
 }
@@ -480,7 +501,7 @@ select:focus {
     display: none;
 }
 
-.checkbox-container input:checked ~ .checkmark:after {
+.checkbox-container input:checked~.checkmark:after {
     display: block;
 }
 
@@ -495,8 +516,15 @@ select:focus {
 }
 
 @keyframes fadeIn {
-    from {opacity: 0; transform: scale(0.95);}
-    to {opacity: 1; transform: scale(1);}
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 
@@ -508,22 +536,28 @@ select:focus {
         flex-direction: column;
         padding: 10px 15px;
     }
+
     header nav {
         margin-top: 10px;
     }
+
     header nav a {
         margin-left: 10px;
         margin-right: 10px;
         padding: 5px;
     }
+
     .filter-bar {
         flex-direction: column;
         align-items: stretch;
     }
-    .form-container, .profile-form-container {
+
+    .form-container,
+    .profile-form-container {
         padding: 25px;
         margin: 15px;
     }
+
     .action-buttons {
         flex-direction: column;
     }

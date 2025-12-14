@@ -1,7 +1,7 @@
 <?php
 // Load environment variables
-require_once '../classes/envLoader.php';
-EnvLoader::load(__DIR__ . '/../.env');
+require_once 'classes/envLoader.php';
+EnvLoader::load(__DIR__ . '/.env');
 
 // Start session for consistency
 session_start();
@@ -9,10 +9,10 @@ session_start();
 // If the user is already logged in, redirect them to the appropriate primary page
 if (isset($_SESSION['user_id'])) {
     if ($_SESSION['isTutorNow'] ?? false) {
-        header("Location: tutorRequests.php");
+        header("Location: pages/tutorRequests.php");
         exit();
     } else {
-        header("Location: findTutor.php");
+        header("Location: pages/findTutor.php");
         exit();
     }
 }
@@ -24,7 +24,7 @@ if (isset($_SESSION['user_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | PeerMentor</title>
-    <link href="../styles/landingStyle.css" rel="stylesheet">
+    <link href="styles/landingStyle.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
@@ -47,7 +47,7 @@ if (isset($_SESSION['user_id'])) {
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            overflow: hidden;
+            /* overflow: hidden; Removed to allow scrolling */
         }
 
         .hero-background {
@@ -75,10 +75,11 @@ if (isset($_SESSION['user_id'])) {
             position: relative;
             z-index: 2;
             text-align: center;
-            color: white;
+            color: #ffffff;
             max-width: 900px;
             padding: 40px 20px;
             animation: fadeInUp 0.8s ease-out;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
         @keyframes fadeInUp {
@@ -303,7 +304,7 @@ if (isset($_SESSION['user_id'])) {
 <body>
     <div class="hero-section">
         <!-- Background image -->
-        <img src="../styles/hero-image.png" alt="Students learning together" class="hero-background">
+        <img src="styles/hero-image.png" alt="Students learning together" class="hero-background">
 
         <!-- Gradient overlay -->
         <div class="hero-overlay"></div>
@@ -322,8 +323,8 @@ if (isset($_SESSION['user_id'])) {
                 collaboration.</p>
 
             <div class="cta-buttons">
-                <a href="register.php" class="btn btn-primary">Get Started Free</a>
-                <a href="login.php" class="btn btn-secondary">Sign In</a>
+                <a href="pages/register.php" class="btn btn-primary">Get Started Free</a>
+                <a href="pages/login.php" class="btn btn-secondary">Sign In</a>
             </div>
 
             <!-- Feature cards -->
@@ -362,7 +363,7 @@ if (isset($_SESSION['user_id'])) {
             </div>
 
             <div class="login-link">
-                Already a member? <a href="login.php">Log in here</a>
+                Already a member? <a href="pages/login.php">Log in here</a>
             </div>
         </div>
     </div>

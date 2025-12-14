@@ -1,5 +1,12 @@
 <?php
-session_start(); // FIRST
+// Secure session configuration
+session_start([
+    'cookie_httponly' => true,
+    'cookie_samesite' => 'Strict',
+    // 'cookie_secure' => true, // Uncomment when using HTTPS
+    'use_strict_mode' => true
+]);
+
 require_once '../classes/courses.php';
 require_once '../classes/csrf.php';
 
@@ -38,11 +45,18 @@ if (empty($courseName) || empty($subjectArea)) {
     exit();
 }
 
+// Validate input length
+if (strlen($courseName) > 100 || strlen($subjectArea) > 50) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Input values are too long.']);
+    exit();
+}
+
 $courseManager = new Course();
 
 if ($courseManager->addCourse($courseName, $subjectArea)) {
     echo json_encode([
-        'success' => true, 
+        'success' => true,
         'message' => 'New course added successfully! Please refresh the page to select it.',
     ]);
 } else {
@@ -51,4 +65,3 @@ if ($courseManager->addCourse($courseName, $subjectArea)) {
 }
 
 exit();
-?>
