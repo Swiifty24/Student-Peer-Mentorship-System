@@ -6,7 +6,7 @@
 /* ---------------------------------- */
 /* --- MODAL COMPONENTS --- */
 /* ---------------------------------- */
-.modal { 
+.modal {
     display: none;
     position: fixed;
     z-index: 1000;
@@ -15,8 +15,8 @@
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6); 
-    align-items: center; 
+    background-color: rgba(0, 0, 0, 0.6);
+    align-items: center;
     justify-content: center;
 }
 
@@ -25,9 +25,9 @@
     margin: auto;
     padding: 30px;
     border-radius: var(--border-radius);
-    width: 90%; 
+    width: 90%;
     max-width: 400px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     position: relative;
     animation: fadeIn 0.3s;
 }
@@ -58,8 +58,15 @@
 }
 
 @keyframes fadeIn {
-    from {opacity: 0; transform: scale(0.95);}
-    to {opacity: 1; transform: scale(1);}
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* ---------------------------------- */
@@ -69,7 +76,6 @@
     position: relative;
     display: inline-block;
     cursor: pointer;
-    margin-right: 15px;
 }
 
 .bell-icon {
@@ -99,7 +105,7 @@
     top: 40px;
     background: white;
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     width: 350px;
     max-height: 500px;
     overflow-y: auto;
@@ -127,7 +133,7 @@
 }
 
 .mark-all-read {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     border: none;
     color: white;
     padding: 5px 10px;
@@ -138,7 +144,7 @@
 }
 
 .mark-all-read:hover {
-    background: rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .notification-list {
@@ -197,7 +203,8 @@
 /* ---------------------------------- */
 /* --- CARD COMPONENTS --- */
 /* ---------------------------------- */
-.tutor-card, .request-card {
+.tutor-card,
+.request-card {
     background: var(--background-white);
     padding: 25px;
     border-radius: var(--border-radius);
@@ -224,7 +231,8 @@
     margin: 0;
 }
 
-.rate-tag, .status-tag {
+.rate-tag,
+.status-tag {
     padding: 5px 12px;
     border-radius: 20px;
     font-size: 0.85rem;
@@ -275,7 +283,8 @@
 /* ---------------------------------- */
 /* --- GRID LAYOUTS --- */
 /* ---------------------------------- */
-.tutor-list-grid, .request-list-grid {
+.tutor-list-grid,
+.request-list-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 30px;
@@ -315,11 +324,11 @@
     transition: all 0.3s;
 }
 
-.checkbox-container:hover input ~ .checkmark {
+.checkbox-container:hover input~.checkmark {
     background-color: #ccc;
 }
 
-.checkbox-container input:checked ~ .checkmark {
+.checkbox-container input:checked~.checkmark {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
 }
@@ -330,7 +339,7 @@
     display: none;
 }
 
-.checkbox-container input:checked ~ .checkmark:after {
+.checkbox-container input:checked~.checkmark:after {
     display: block;
 }
 
@@ -403,12 +412,12 @@
         width: 300px;
         right: -20px;
     }
-    
+
     .modal-content {
         width: 95%;
         padding: 20px;
     }
-    
+
     .card-header {
         flex-direction: column;
         align-items: flex-start;

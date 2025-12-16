@@ -33,12 +33,10 @@ function getStudentData($pdo, $tutorUserId, $studentId = null)
 {
     if ($studentId) {
         $stmt = $pdo->prepare("SELECT u.*, c.courseName, e.enrollmentID, e.status,
-                               COUNT(s.sessionID) as total_sessions,
-                               SUM(s.duration) as total_hours
+                               COUNT(e.enrollmentID) as total_sessions
                                FROM users u
-                               JOIN enrollments e ON u.userID = e.studentUserID
+                               JOIN enrollments e ON u.userID = e.studentID
                                JOIN courses c ON e.courseID = c.courseID
-                               LEFT JOIN sessions s ON e.enrollmentID = s.enrollmentID AND s.status = 'Completed'
                                WHERE e.tutorUserID = ? AND u.userID = ?
                                GROUP BY u.userID");
         $stmt->execute([$tutorUserId, $studentId]);
@@ -50,13 +48,12 @@ function getStudentData($pdo, $tutorUserId, $studentId = null)
 // FIXED: Get sessions for attendance/schedule
 function getSessions($pdo, $tutorUserId, $limit = 20)
 {
-    $stmt = $pdo->prepare("SELECT s.*, u.firstName, u.lastName, c.courseName, e.status
-                           FROM sessions s
-                           JOIN enrollments e ON s.enrollmentID = e.enrollmentID
-                           JOIN users u ON e.studentUserID = u.userID
+    $stmt = $pdo->prepare("SELECT e.*, u.firstName, u.lastName, c.courseName, e.status
+                           FROM enrollments e
+                           JOIN users u ON e.studentID = u.userID
                            JOIN courses c ON e.courseID = c.courseID
                            WHERE e.tutorUserID = ?
-                           ORDER BY s.sessionDate DESC, s.startTime DESC
+                           ORDER BY e.requestedAt DESC
                            LIMIT ?");
     $stmt->execute([$tutorUserId, $limit]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -164,11 +161,13 @@ $sessions = getSessions($pdo, $tutorUserId, 30);
                     <tbody>
                         <?php foreach ($sessions as $session): ?>
                             <tr>
-                                <td><?php echo date('M d, Y', strtotime($session['sessionDate'])); ?></td>
+                                <td><?php echo $session['sessionDate'] ? date('M d, Y', strtotime($session['sessionDate'])) : 'TBD'; ?>
+                                </td>
                                 <td><?php echo htmlspecialchars($session['firstName'] . ' ' . $session['lastName']); ?></td>
                                 <td><?php echo htmlspecialchars($session['courseName']); ?></td>
-                                <td><?php echo date('g:i A', strtotime($session['startTime'])); ?></td>
-                                <td><?php echo $session['status'] === 'Completed' ? '✓ Present' : '✗ Absent'; ?></td>
+                                <td><?php echo $session['sessionTime'] ? date('g:i A', strtotime($session['sessionTime'])) : 'TBD'; ?>
+                                </td>
+                                <td><?php echo $session['status'] === 'confirmed' ? '✓ Confirmed' : '✗ Pending'; ?></td>
                                 <td></td>
                             </tr>
                         <?php endforeach; ?>
@@ -210,11 +209,13 @@ $sessions = getSessions($pdo, $tutorUserId, 30);
                     <tbody>
                         <?php foreach ($sessions as $session): ?>
                             <tr>
-                                <td><?php echo date('l', strtotime($session['sessionDate'])); ?></td>
-                                <td><?php echo date('g:i A', strtotime($session['startTime'])); ?></td>
+                                <td><?php echo $session['sessionDate'] ? date('l', strtotime($session['sessionDate'])) : 'TBD'; ?>
+                                </td>
+                                <td><?php echo $session['sessionTime'] ? date('g:i A', strtotime($session['sessionTime'])) : 'TBD'; ?>
+                                </td>
                                 <td><?php echo htmlspecialchars($session['firstName'] . ' ' . $session['lastName']); ?></td>
                                 <td><?php echo htmlspecialchars($session['courseName']); ?></td>
-                                <td><?php echo $session['duration']; ?> hrs</td>
+                                <td>N/A</td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -266,7 +267,7 @@ $sessions = getSessions($pdo, $tutorUserId, 30);
                     </thead>
                     <tbody>
                         <?php
-                        $totalHours = array_sum(array_column($sessions, 'duration'));
+                        $totalHours = count($sessions);  // Number of confirmed sessions
                         $hourlyRate = $tutorProfile['hourlyRate'] ?? 30;
                         $subtotal = $totalHours * $hourlyRate;
                         ?>
@@ -325,15 +326,13 @@ $sessions = getSessions($pdo, $tutorUserId, 30);
                     <tbody>
                         <?php
                         $stmt = $pdo->prepare("SELECT u.firstName, u.lastName, c.courseName, e.status,
-                                          COUNT(s.sessionID) as session_count,
-                                          SUM(s.duration) as total_hours
+                                          COUNT(e.enrollmentID) as session_count
                                           FROM enrollments e
-                                          JOIN users u ON e.studentUserID = u.userID
+                                          JOIN users u ON e.studentID = u.userID
                                           JOIN courses c ON e.courseID = c.courseID
-                                          LEFT JOIN sessions s ON e.enrollmentID = s.enrollmentID AND s.status = 'Completed'
                                           WHERE e.tutorUserID = ?
                                           GROUP BY u.userID
-                                          ORDER BY session_count DESC");
+                                          ORDER BYsession_count DESC");
                         $stmt->execute([$tutorUserId]);
                         $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -347,7 +346,7 @@ $sessions = getSessions($pdo, $tutorUserId, 30);
                                 <td><?php echo htmlspecialchars($stud['firstName'] . ' ' . $stud['lastName']); ?></td>
                                 <td><?php echo htmlspecialchars($stud['courseName']); ?></td>
                                 <td><?php echo $stud['session_count']; ?></td>
-                                <td><?php echo number_format($stud['total_hours'], 1); ?></td>
+                                <td>N/A</td>
                                 <td><?php echo htmlspecialchars($statusName); ?></td>
                             </tr>
                         <?php endforeach; ?>

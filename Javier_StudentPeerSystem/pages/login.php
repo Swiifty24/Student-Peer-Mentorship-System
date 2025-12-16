@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($loggedInUser) {
                     // Check if email is verified
-                    if (isset($loggedInUser['isVerified']) && $loggedInUser['isVerified'] == 0) {
+                    if (isset($loggedInUser['isEmailVerified']) && $loggedInUser['isEmailVerified'] == 0) {
                         $message = "Please verify your email address before logging in. Check your inbox for the verification link.";
                     } else {
                         // Clear rate limit on successful login

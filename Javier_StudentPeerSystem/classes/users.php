@@ -83,7 +83,7 @@ class User
      */
     public function login($email, $password)
     {
-        $sql = "SELECT userID, email, password, firstName, lastName, isTutorNow, isActive, isVerified 
+        $sql = "SELECT userID, email, password, firstName, lastName, isTutorNow, isActive, isEmailVerified 
                 FROM users 
                 WHERE email = :email AND isActive = 1";
 

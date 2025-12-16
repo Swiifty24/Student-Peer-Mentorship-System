@@ -54,6 +54,11 @@ if ($selectedCourseID) {
     $tutorsList = $tutorProfileManager->getAllActiveTutors();
 }
 
+// Filter out current user from the tutor list (users shouldn't see themselves)
+$tutorsList = array_filter($tutorsList, function($tutor) use ($currentStudentUserID) {
+    return $tutor['userID'] != $currentStudentUserID;
+});
+
 // Handle Session Request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request_session') {
     $enrollmentManager->studentUserID = $currentStudentUserID;

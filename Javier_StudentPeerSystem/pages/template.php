@@ -15,6 +15,113 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
     <title><?php echo htmlspecialchars($pageTitle); ?> | PeerMentor</title>
     <link href="../styles/styles.css" rel="stylesheet">
     <link href="../styles/components.css" rel="stylesheet">
+
+    <!-- Force logout button styling + Modal styles -->
+    <style>
+        /* Logout Button */
+        .nav-button.danger-button,
+        #logoutButton {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+            color: white !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4) !important;
+            font-weight: 600 !important;
+            padding: 10px 24px !important;
+            text-decoration: none !important;
+            border-radius: 8px !important;
+            font-size: 0.95rem !important;
+            transition: all 0.3s ease !important;
+            cursor: pointer !important;
+        }
+
+        .nav-button.danger-button:hover,
+        #logoutButton:hover {
+            background: linear-gradient(135deg, #c0392b 0%, #a93226 100%) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.6) !important;
+        }
+
+        /* Modal Styles - CRITICAL FOR LOGOUT TO WORK */
+        .modal {
+            display: none;
+            /* JavaScript will change this to 'flex' */
+            position: fixed !important;
+            z-index: 10000 !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            justify-content: center !important;
+            align-items: center !important;
+        }
+
+        .modal-content {
+            background-color: white !important;
+            padding: 30px !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+            max-width: 400px !important;
+            width: 90% !important;
+            position: relative !important;
+            animation: slideIn 0.3s ease !important;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal .close {
+            position: absolute !important;
+            top: 15px !important;
+            right: 20px !important;
+            font-size: 28px !important;
+            font-weight: bold !important;
+            color: #666 !important;
+            cursor: pointer !important;
+            line-height: 1 !important;
+        }
+
+        .modal .close:hover {
+            color: #e74c3c !important;
+        }
+
+        .modal-content h3 {
+            margin-top: 0 !important;
+            color: #333 !important;
+            margin-bottom: 15px !important;
+            font-size: 1.5rem !important;
+        }
+
+        .modal-content p {
+            color: #666 !important;
+            margin-bottom: 25px !important;
+            line-height: 1.6 !important;
+        }
+
+        .modal-actions {
+            display: flex !important;
+            gap: 15px !important;
+            justify-content: flex-end !important;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px !important;
+            border: none !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            font-weight: 600 !important;
+            transition: all 0.3s !important;
+        }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
 
     <!-- Flatpickr Date Picker -->
@@ -45,6 +152,7 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
                 <a href="findTutor.php" class="nav-button tertiary-button">Student View</a>
                 <a href="tutorRequests.php" class="nav-button primary-button">View Requests</a>
                 <a href="setupTutorProfile.php" class="nav-button tertiary-button">Update Profile</a>
+                <a href="printables.php" class="nav-button tertiary-button">📄 Printables</a>
                 <a href="toggleRole.php?role=tutor&status=0" class="nav-button danger-button">Deactivate Role</a>
             <?php endif; ?>
             <button id="logoutButton" class="nav-button danger-button">Log Out</button>
@@ -122,10 +230,25 @@ $userFirstName = $_SESSION['first_name'] ?? 'User';
             const cancelLogout = document.getElementById('cancelLogout');
             const closeModal = document.getElementById('closeLogoutModal');
 
+            console.log('Logout elements:', { logoutButton, logoutModal, confirmLogout });
+
             if (logoutButton) {
-                logoutButton.addEventListener('click', function () {
-                    logoutModal.style.display = 'flex';
+                logoutButton.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Logout button clicked!');
+
+                    // Try multiple methods to display the modal
+                    logoutModal.style.setProperty('display', 'flex', 'important');
+                    logoutModal.style.visibility = 'visible';
+                    logoutModal.style.opacity = '1';
+                    logoutModal.style.zIndex = '99999';
+
+                    console.log('Modal display set to:', logoutModal.style.display);
+                    console.log('Computed display:', window.getComputedStyle(logoutModal).display);
                 });
+            } else {
+                console.error('Logout button not found!');
             }
 
             [closeModal, cancelLogout].forEach(element => {

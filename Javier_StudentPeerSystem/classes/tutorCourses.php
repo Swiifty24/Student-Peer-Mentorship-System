@@ -6,10 +6,12 @@ require_once 'database.php';
 /**
  * Manages the linking between Tutors and Courses (tutorCourses table).
  */
-class TutorCourse {
+class TutorCourse
+{
     protected $db;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->db = new Database();
     }
 
@@ -18,7 +20,8 @@ class TutorCourse {
      * @param int $courseID The ID of the course to search for.
      * @return array List of tutor details.
      */
-    public function findTutorsByCourse($courseID) {
+    public function findTutorsByCourse($courseID)
+    {
         $sql = "SELECT 
                     u.userID, 
                     u.firstName, 
@@ -29,9 +32,9 @@ class TutorCourse {
                 FROM 
                     users u
                 JOIN 
-                    tutorCourses tc ON u.userID = tc.userID
+                    tutorcourses tc ON u.userID = tc.userID
                 JOIN 
-                    tutorProfiles tp ON u.userID = tp.userID
+                    tutorprofiles tp ON u.userID = tp.userID
                 WHERE 
                     tc.courseID = :courseID 
                 AND 
@@ -49,19 +52,20 @@ class TutorCourse {
             return [];
         }
     }
-    
+
     /**
      * Retrieves all course names or IDs that a tutor teaches.
      * @param int $userID The ID of the tutor.
      * @param bool $returnIDs If true, returns an array of course IDs. If false, returns course names.
      * @return array List of course names or IDs.
      */
-    public function getAllCoursesTaughtByTutor($userID, $returnIDs = false) {
+    public function getAllCoursesTaughtByTutor($userID, $returnIDs = false)
+    {
         $select = $returnIDs ? 'c.courseID' : 'c.courseName';
         $sql = "SELECT 
                     {$select}
                 FROM 
-                    tutorCourses tc
+                    tutorcourses tc
                 JOIN 
                     courses c ON tc.courseID = c.courseID
                 WHERE 
@@ -73,9 +77,9 @@ class TutorCourse {
             $query = $this->db->connect()->prepare($sql);
             $query->bindParam(':userID', $userID, PDO::PARAM_INT);
             $query->execute();
-            
+
             $results = $query->fetchAll(PDO::FETCH_COLUMN, 0);
-            
+
             return $results;
         } catch (PDOException $e) {
             error_log("Database Error in getAllCoursesTaughtByTutor: " . $e->getMessage());
@@ -89,13 +93,14 @@ class TutorCourse {
      * @param int $userID The ID of the tutor.
      * @return array List of courses with courseID, courseName, subjectArea.
      */
-    public function getTutorCoursesWithSubjectArea($userID) {
+    public function getTutorCoursesWithSubjectArea($userID)
+    {
         $sql = "SELECT 
                     c.courseID, 
                     c.courseName, 
                     c.subjectArea 
                 FROM 
-                    tutorCourses tc
+                    tutorcourses tc
                 JOIN 
                     courses c ON tc.courseID = c.courseID
                 WHERE 
@@ -120,26 +125,27 @@ class TutorCourse {
      * @param array $courseIDs
      * @return bool True on success, False on failure.
      */
-    public function saveCourses($userID, array $courseIDs) {
+    public function saveCourses($userID, array $courseIDs)
+    {
         $dbConnection = $this->db->connect();
-        
+
         try {
             $dbConnection->beginTransaction();
 
             // Delete existing courses
-            $deleteSql = "DELETE FROM tutorCourses WHERE userID = :userID";
+            $deleteSql = "DELETE FROM tutorcourses WHERE userID = :userID";
             $deleteQuery = $dbConnection->prepare($deleteSql);
-            $deleteQuery->execute([':userID' => $userID]); 
+            $deleteQuery->execute([':userID' => $userID]);
 
             // Insert new courses
             if (!empty($courseIDs)) {
-                $insertSql = "INSERT INTO tutorCourses (userID, courseID) VALUES (:userID, :courseID)";
+                $insertSql = "INSERT INTO tutorcourses (userID, courseID) VALUES (:userID, :courseID)";
                 $insertQuery = $dbConnection->prepare($insertSql);
-                
+
                 foreach ($courseIDs as $courseID) {
                     $insertQuery->execute([
                         ':userID' => $userID,
-                        ':courseID' => intval($courseID) 
+                        ':courseID' => intval($courseID)
                     ]);
                 }
             }

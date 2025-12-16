@@ -38,7 +38,7 @@ class Enrollment
         try {
             $query = "INSERT INTO " . $this->table . " 
                       (studentUserID, tutorUserID, courseID, sessionDetails, status, requestDate) 
-                      VALUES (:studentUserID, :tutorUserID, :courseID, :sessionDetails, 0, NOW())";
+                      VALUES (:studentUserID, :tutorUserID, :courseID, :sessionDetails, 'pending', NOW())";
 
             $stmt = $this->conn->prepare($query);
 
@@ -104,21 +104,15 @@ class Enrollment
                 return false;
             }
 
-            // Map string status to integer
-            $statusMap = [
-                'Confirmed' => 1,
-                'Cancelled' => 2,
-                'Completed' => 3
-            ];
-
-            $statusCode = $statusMap[$newStatus] ?? 0;
+            // Map string status to ENUM value (lowercase)
+            $statusValue = strtolower($newStatus); // Convert to lowercase to match ENUM
 
             $query = "UPDATE " . $this->table . " 
                       SET status = :status 
                       WHERE enrollmentID = :enrollmentID";
 
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':status', $statusCode);
+            $stmt->bindParam(':status', $statusValue);
             $stmt->bindParam(':enrollmentID', $enrollmentID);
 
             if ($stmt->execute()) {

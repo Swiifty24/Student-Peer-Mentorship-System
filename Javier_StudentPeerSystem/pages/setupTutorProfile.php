@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['isTutorNow'] = 1;
 
             $message = "Your Tutor Profile has been successfully saved and ACTIVATED! You can now receive requests.";
-            header("Location: setupTutorProfile.php?msg=" . urlencode($message));
+            header("Location: findTutor.php?msg=" . urlencode($message));
             exit();
         } else {
             $message = "An error occurred while saving your profile or courses.";
@@ -193,6 +193,7 @@ ob_start();
         if (openBtn) {
             openBtn.addEventListener('click', function (e) {
                 e.preventDefault();
+                e.stopPropagation();
                 modalMessage.style.display = 'none';
                 modal.style.display = "flex";
             });
@@ -218,9 +219,14 @@ ob_start();
                 method: 'POST',
                 body: formData
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    modalMessage.textContent = data.message;
+                    modalMessage.textContent = data.message || 'Operation completed';
                     modalMessage.style.display = 'block';
 
                     if (data.success) {
@@ -238,7 +244,7 @@ ob_start();
                 })
                 .catch(error => {
                     console.error('Fetch Error:', error);
-                    modalMessage.textContent = 'An unexpected error occurred.';
+                    modalMessage.textContent = 'Network error: Unable to add course. Please check your connection and try again.';
                     modalMessage.className = 'alert error';
                     modalMessage.style.display = 'block';
                 })

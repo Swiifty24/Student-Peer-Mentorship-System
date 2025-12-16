@@ -2,10 +2,12 @@
 
 require_once 'database.php';
 
-class TutorCourse {
+class TutorCourse
+{
     protected $db;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->db = new Database();
     }
 
@@ -14,7 +16,8 @@ class TutorCourse {
      * @param int $courseID
      * @return array List of tutor details.
      */
-    public function findTutorsByCourse($courseID) {
+    public function findTutorsByCourse($courseID)
+    {
         // Join users, tutorProfiles, and tutorCourses to get detailed tutor info
         $sql = "SELECT 
                     u.userID, 
@@ -26,9 +29,9 @@ class TutorCourse {
                 FROM 
                     users u
                 JOIN 
-                    tutorCourses tc ON u.userID = tc.userID
+                    tutorcourses tc ON u.userID = tc.userID
                 JOIN 
-                    tutorProfiles tp ON u.userID = tp.userID
+                    tutorprofiles tp ON u.userID = tp.userID
                 WHERE 
                     tc.courseID = :courseID 
                 AND 
@@ -47,15 +50,16 @@ class TutorCourse {
             return [];
         }
     }
-    
+
     /**
      * Fetches a simple array of course IDs taught by a specific tutor.
      * This is used to pre-select checkboxes in the profile form.
      * @param int $userID
      * @return array Simple array of course IDs (e.g., [1, 5, 12]).
      */
-    public function getCoursesByTutor($userID) {
-        $sql = "SELECT courseID FROM tutorCourses WHERE userID = :userID";
+    public function getCoursesByTutor($userID)
+    {
+        $sql = "SELECT courseID FROM tutorcourses WHERE userID = :userID";
         try {
             $query = $this->db->connect()->prepare($sql);
             $query->bindParam(':userID', $userID, PDO::PARAM_INT);
@@ -66,14 +70,15 @@ class TutorCourse {
             return [];
         }
     }
-    
+
     /**
      * Removes all courses assigned to a specific tutor.
      * @param int $userID
      * @return bool True on success, False on failure.
      */
-    public function removeCoursesByTutor($userID) {
-        $sql = "DELETE FROM tutorCourses WHERE userID = :userID";
+    public function removeCoursesByTutor($userID)
+    {
+        $sql = "DELETE FROM tutorcourses WHERE userID = :userID";
         try {
             $query = $this->db->connect()->prepare($sql);
             $query->bindParam(':userID', $userID, PDO::PARAM_INT);
@@ -83,16 +88,17 @@ class TutorCourse {
             return false;
         }
     }
-    
+
     /**
      * Links a specific course to a tutor.
      * @param int $userID
      * @param int $courseID
      * @return bool True on success, False on failure.
      */
-    public function addCourseToTutor($userID, $courseID) {
+    public function addCourseToTutor($userID, $courseID)
+    {
         // Using IGNORE to prevent error if the link already exists (though it shouldn't after removal)
-        $sql = "INSERT IGNORE INTO tutorCourses (userID, courseID) VALUES (:userID, :courseID)";
+        $sql = "INSERT IGNORE INTO tutorcourses (userID, courseID) VALUES (:userID, :courseID)";
         try {
             $query = $this->db->connect()->prepare($sql);
             $query->bindParam(':userID', $userID, PDO::PARAM_INT);
